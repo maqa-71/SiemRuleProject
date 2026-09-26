@@ -31,13 +31,10 @@ jobs:
           import yaml
 
           required = {
-              "name", "title", "description", "status", "version", "author",
-              "platform", "data_source", "mitre_attack", "search", "schedule",
-              "alert", "suppression", "validation"
-          }
-          allowed_statuses = {
-              "draft", "static_review", "simulated_test", "lab_validated",
-              "production_candidate", "production_ready"
+              "name", "search", "description", "cron_schedule",
+              "dispatch_earliest_time", "dispatch_latest_time", "enableSched",
+              "alert_type", "alert_comparator", "alert_threshold",
+              "alert_track", "alert_severity"
           }
           files = sorted(glob.glob("splunk/rules/*.yml"))
           assert len(files) == 15, f"Expected 15 rule files, found {len(files)}"
@@ -47,8 +44,6 @@ jobs:
                   rule = yaml.safe_load(handle)
               missing = required.difference(rule)
               assert not missing, f"{path}: missing {sorted(missing)}"
-              assert rule["status"] in allowed_statuses, f"{path}: invalid status"
-              assert rule["platform"] == "splunk", f"{path}: invalid platform"
               assert rule["search"].strip(), f"{path}: empty search"
               assert rule["name"] not in names, f"{path}: duplicate rule name"
               names.add(rule["name"])
@@ -107,24 +102,18 @@ jobs:
                   rule = yaml.safe_load(handle)
 
               name = rule["name"]
-              alert = rule["alert"]
-              schedule = rule["schedule"]
-              suppression = rule["suppression"]
               payload = {
                   "description": rule["description"],
                   "search": rule["search"].strip(),
-                  "cron_schedule": schedule["cron"],
-                  "dispatch.earliest_time": schedule["earliest"],
-                  "dispatch.latest_time": schedule["latest"],
-                  "is_scheduled": "1" if alert["enabled"] else "0",
-                  "alert_type": alert["type"],
-                  "alert_comparator": alert["comparator"],
-                  "alert_threshold": str(alert["threshold"]),
-                  "alert.track": "1" if alert["track"] else "0",
-                  "alert.severity": severity[int(alert["severity"])],
-                  "alert.suppress": "1" if suppression["enabled"] else "0",
-                  "alert.suppress.period": suppression["period"],
-                  "alert.suppress.fields": ",".join(suppression["fields"]),
+                  "cron_schedule": rule["cron_schedule"],
+                  "dispatch.earliest_time": rule["dispatch_earliest_time"],
+                  "dispatch.latest_time": rule["dispatch_latest_time"],
+                  "is_scheduled": str(rule["enableSched"]),
+                  "alert_type": rule["alert_type"],
+                  "alert_comparator": rule["alert_comparator"],
+                  "alert_threshold": str(rule["alert_threshold"]),
+                  "alert.track": str(rule["alert_track"]),
+                  "alert.severity": severity[int(rule["alert_severity"])],
               }
 
               encoded = urllib.parse.quote(name, safe="")

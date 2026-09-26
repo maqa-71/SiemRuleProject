@@ -1,48 +1,13 @@
 name: Rule_12_Registry_Run_Keys_Malicious_Modification
-title: Windows - Suspicious Registry Run Key Modification
-description: '[DRAFT] Detects suspicious Run or RunOnce registry persistence pointing to scripts, LOLBins or user-writable
-  locations.'
-status: draft
-version: 0.1.0
-author: Maqa
-platform: splunk
-data_source:
-  index: windows
-  sourcetype: XmlWinEventLog:Microsoft-Windows-Sysmon/Operational
-  event_ids:
-  - '12'
-  - '13'
-  - '14'
-mitre_attack:
-  tactic:
-    id: TA0003
-    name: Persistence
-  technique:
-    id: T1547.001
-    name: Registry Run Keys / Startup Folder
-search: index=windows sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational" (EventCode=12 OR EventCode=13 OR EventCode=14)
-  (TargetObject="*\\Microsoft\\Windows\\CurrentVersion\\Run\\*" OR TargetObject="*\\Microsoft\\Windows\\CurrentVersion\\RunOnce\\*")
-  | eval details=lower(coalesce(Details,NewName)) | where match(details,"(?i)(\\\\appdata|\\\\temp|\\\\users\\\\public|powershell|cmd\\.exe|wscript|cscript|mshta|rundll32|\\.ps1|\\.bat|https?://)")
-  | table _time host User Image EventCode TargetObject Details NewName ProcessId
-schedule:
-  cron: '*/5 * * * *'
-  earliest: -10m@m
-  latest: now
-alert:
-  enabled: false
-  type: number of events
-  comparator: greater than
-  threshold: 0
-  track: true
-  severity: 3
-suppression:
-  enabled: true
-  period: 30m
-  fields:
-  - host
-  - TargetObject
-validation:
-  telemetry_verified: false
-  positive_test: pending
-  negative_test: pending
-  lab_validated: false
+search: |
+  index=windows sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational" (EventCode=12 OR EventCode=13 OR EventCode=14) (TargetObject="*\\Microsoft\\Windows\\CurrentVersion\\Run\\*" OR TargetObject="*\\Microsoft\\Windows\\CurrentVersion\\RunOnce\\*") | eval details=lower(coalesce(Details,NewName)) | where match(details,"(?i)(\\\\appdata|\\\\temp|\\\\users\\\\public|powershell|cmd\\.exe|wscript|cscript|mshta|rundll32|\\.ps1|\\.bat|https?://)") | table _time host User Image EventCode TargetObject Details NewName ProcessId
+description: Detects suspicious Run or RunOnce registry persistence pointing to scripts, LOLBins or user-writable locations.
+cron_schedule: '*/5 * * * *'
+dispatch_earliest_time: -10m@m
+dispatch_latest_time: now
+enableSched: 0
+alert_type: number of events
+alert_comparator: greater than
+alert_threshold: 0
+alert_track: 1
+alert_severity: 3

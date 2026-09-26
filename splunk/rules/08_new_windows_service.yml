@@ -1,44 +1,13 @@
 name: Rule_08_Persistence_Via_New_Windows_Service
-title: Windows - Suspicious New Service
-description: '[DRAFT] Detects newly installed Windows services pointing to user-writable paths or suspicious command interpreters.'
-status: draft
-version: 0.1.0
-author: Maqa
-platform: splunk
-data_source:
-  index: windows
-  sourcetype: XmlWinEventLog:System
-  event_ids:
-  - '7045'
-mitre_attack:
-  tactic:
-    id: TA0003
-    name: Persistence
-  technique:
-    id: T1543.003
-    name: Windows Service
-search: index=windows sourcetype="XmlWinEventLog:System" EventCode=7045 | eval service_name=coalesce(ServiceName,Service_Name),
-  image_path=lower(coalesce(ImagePath,Service_File_Name)) | where match(image_path,"(?i)(\\\\users\\\\[^\\\\]+\\\\appdata|\\\\windows\\\\temp|\\\\users\\\\public|powershell|cmd\\.exe|wscript|cscript|mshta|rundll32)")
-  | table _time host service_name image_path ServiceType StartType AccountName
-schedule:
-  cron: '*/5 * * * *'
-  earliest: -10m@m
-  latest: now
-alert:
-  enabled: false
-  type: number of events
-  comparator: greater than
-  threshold: 0
-  track: true
-  severity: 4
-suppression:
-  enabled: true
-  period: 60m
-  fields:
-  - host
-  - service_name
-validation:
-  telemetry_verified: false
-  positive_test: pending
-  negative_test: pending
-  lab_validated: false
+search: |
+  index=windows sourcetype="XmlWinEventLog:System" EventCode=7045 | eval service_name=coalesce(ServiceName,Service_Name), image_path=lower(coalesce(ImagePath,Service_File_Name)) | where match(image_path,"(?i)(\\\\users\\\\[^\\\\]+\\\\appdata|\\\\windows\\\\temp|\\\\users\\\\public|powershell|cmd\\.exe|wscript|cscript|mshta|rundll32)") | table _time host service_name image_path ServiceType StartType AccountName
+description: Detects newly installed Windows services pointing to user-writable paths or suspicious command interpreters.
+cron_schedule: '*/5 * * * *'
+dispatch_earliest_time: -10m@m
+dispatch_latest_time: now
+enableSched: 0
+alert_type: number of events
+alert_comparator: greater than
+alert_threshold: 0
+alert_track: 1
+alert_severity: 4

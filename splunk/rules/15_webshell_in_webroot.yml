@@ -1,47 +1,13 @@
 name: Rule_15_Process_Creating_Webshell_In_Webroot
-title: Windows - Potential Webshell Written to Webroot
-description: '[DRAFT] Detects uncommon processes creating potential webshell files inside IIS, Tomcat, XAMPP or Apache webroot
-  directories.'
-status: draft
-version: 0.1.0
-author: Maqa
-platform: splunk
-data_source:
-  index: windows
-  sourcetype: XmlWinEventLog:Microsoft-Windows-Sysmon/Operational
-  event_ids:
-  - '11'
-mitre_attack:
-  tactic:
-    id: TA0003
-    name: Persistence
-  technique:
-    id: T1505.003
-    name: Web Shell
-search: index=windows sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=11 | eval target=lower(TargetFilename),
-  process=lower(Image) | where match(target,"(?i)(\\\\inetpub\\\\wwwroot\\\\|\\\\tomcat\\\\webapps\\\\|\\\\xampp\\\\htdocs\\\\|\\\\apache[^\\\\]*\\\\htdocs\\\\).+\\.(aspx|ashx|asmx|php|jsp|jspx|war)$")
-  | where NOT match(process,"(?i)(msiexec|trustedinstaller|tomcat|java|w3wp)\\.exe$") | table _time host User Image ProcessId
-  TargetFilename Hashes
-schedule:
-  cron: '*/5 * * * *'
-  earliest: -10m@m
-  latest: now
-alert:
-  enabled: false
-  type: number of events
-  comparator: greater than
-  threshold: 0
-  track: true
-  severity: 5
-suppression:
-  enabled: true
-  period: 30m
-  fields:
-  - host
-  - Image
-  - TargetFilename
-validation:
-  telemetry_verified: false
-  positive_test: pending
-  negative_test: pending
-  lab_validated: false
+search: |
+  index=windows sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=11 | eval target=lower(TargetFilename), process=lower(Image) | where match(target,"(?i)(\\\\inetpub\\\\wwwroot\\\\|\\\\tomcat\\\\webapps\\\\|\\\\xampp\\\\htdocs\\\\|\\\\apache[^\\\\]*\\\\htdocs\\\\).+\\.(aspx|ashx|asmx|php|jsp|jspx|war)$") | where NOT match(process,"(?i)(msiexec|trustedinstaller|tomcat|java|w3wp)\\.exe$") | table _time host User Image ProcessId TargetFilename Hashes
+description: Detects uncommon processes creating potential webshell files inside IIS, Tomcat, XAMPP or Apache webroot directories.
+cron_schedule: '*/5 * * * *'
+dispatch_earliest_time: -10m@m
+dispatch_latest_time: now
+enableSched: 0
+alert_type: number of events
+alert_comparator: greater than
+alert_threshold: 0
+alert_track: 1
+alert_severity: 5

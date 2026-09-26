@@ -1,45 +1,13 @@
 name: Rule_09_UAC_Bypass_Via_Fodhelper
-title: Windows - UAC Bypass via Fodhelper
-description: '[DRAFT] Detects unusual child processes spawned by fodhelper.exe that can indicate UAC bypass.'
-status: draft
-version: 0.1.0
-author: Maqa
-platform: splunk
-data_source:
-  index: windows
-  sourcetype: XmlWinEventLog:Microsoft-Windows-Sysmon/Operational
-  event_ids:
-  - '1'
-mitre_attack:
-  tactic:
-    id: TA0004
-    name: Privilege Escalation
-  technique:
-    id: T1548.002
-    name: Bypass User Account Control
-search: index=windows sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1 ParentImage="*\\fodhelper.exe"
-  NOT (Image="*\\mmc.exe" OR Image="*\\control.exe") | table _time host User ParentImage ParentCommandLine Image CommandLine
-  IntegrityLevel ProcessId ParentProcessId
-schedule:
-  cron: '*/5 * * * *'
-  earliest: -10m@m
-  latest: now
-alert:
-  enabled: false
-  type: number of events
-  comparator: greater than
-  threshold: 0
-  track: true
-  severity: 4
-suppression:
-  enabled: true
-  period: 30m
-  fields:
-  - host
-  - User
-  - Image
-validation:
-  telemetry_verified: false
-  positive_test: pending
-  negative_test: pending
-  lab_validated: false
+search: |
+  index=windows sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1 ParentImage="*\\fodhelper.exe" NOT (Image="*\\mmc.exe" OR Image="*\\control.exe") | table _time host User ParentImage ParentCommandLine Image CommandLine IntegrityLevel ProcessId ParentProcessId
+description: Detects unusual child processes spawned by fodhelper.exe that can indicate UAC bypass.
+cron_schedule: '*/5 * * * *'
+dispatch_earliest_time: -10m@m
+dispatch_latest_time: now
+enableSched: 0
+alert_type: number of events
+alert_comparator: greater than
+alert_threshold: 0
+alert_track: 1
+alert_severity: 4

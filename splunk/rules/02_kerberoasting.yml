@@ -1,47 +1,13 @@
 name: Rule_02_Kerberoasting_Attack_TGS_Request
-title: Windows - Kerberoasting TGS Requests
-description: '[DRAFT] Detects suspicious RC4-encrypted TGS requests targeting service accounts, which can be associated with
-  Kerberoasting. Requires Domain Controller Security events.'
-status: draft
-version: 0.1.0
-author: Maqa
-platform: splunk
-data_source:
-  index: windows
-  sourcetype: XmlWinEventLog:Security
-  event_ids:
-  - '4769'
-mitre_attack:
-  tactic:
-    id: TA0006
-    name: Credential Access
-  technique:
-    id: T1558.003
-    name: Kerberoasting
-search: index=windows sourcetype="XmlWinEventLog:Security" EventCode=4769 TicketEncryptionType="0x17" ServiceName!="*$" |
-  eval user=coalesce(TargetUserName,Account_Name), src=coalesce(IpAddress,Client_Address) | bin _time span=5m | stats count
-  AS tgs_requests dc(ServiceName) AS unique_services values(ServiceName) AS services by _time host user src | where tgs_requests>=3
-  OR unique_services>=3
-schedule:
-  cron: '*/5 * * * *'
-  earliest: -10m@m
-  latest: now
-alert:
-  enabled: false
-  type: number of events
-  comparator: greater than
-  threshold: 0
-  track: true
-  severity: 4
-suppression:
-  enabled: true
-  period: 30m
-  fields:
-  - host
-  - user
-  - src
-validation:
-  telemetry_verified: false
-  positive_test: pending
-  negative_test: pending
-  lab_validated: false
+search: |
+  index=windows sourcetype="XmlWinEventLog:Security" EventCode=4769 TicketEncryptionType="0x17" ServiceName!="*$" | eval user=coalesce(TargetUserName,Account_Name), src=coalesce(IpAddress,Client_Address) | bin _time span=5m | stats count AS tgs_requests dc(ServiceName) AS unique_services values(ServiceName) AS services by _time host user src | where tgs_requests>=3 OR unique_services>=3
+description: Detects suspicious RC4-encrypted TGS requests targeting service accounts, which can be associated with Kerberoasting. Requires Domain Controller Security events.
+cron_schedule: '*/5 * * * *'
+dispatch_earliest_time: -10m@m
+dispatch_latest_time: now
+enableSched: 0
+alert_type: number of events
+alert_comparator: greater than
+alert_threshold: 0
+alert_track: 1
+alert_severity: 4
