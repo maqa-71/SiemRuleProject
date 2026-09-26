@@ -1,0 +1,49 @@
+name: Rule_06_Brute_Force_Followed_By_Successful_Login
+title: Windows - Brute Force Followed by Successful Login
+description: '[DRAFT] Detects five or more failed logons followed by a successful authentication for the same user, source
+  and host within 15 minutes.'
+status: draft
+version: 0.1.0
+author: Maqa
+platform: splunk
+data_source:
+  index: windows
+  sourcetype: XmlWinEventLog:Security
+  event_ids:
+  - '4624'
+  - '4625'
+mitre_attack:
+  tactic:
+    id: TA0006
+    name: Credential Access
+  technique:
+    id: T1110.001
+    name: Password Guessing
+search: index=windows sourcetype="XmlWinEventLog:Security" (EventCode=4624 OR EventCode=4625) | eval user=coalesce(TargetUserName,Account_Name),
+  src=coalesce(IpAddress,Source_Network_Address) | where isnotnull(user) AND isnotnull(src) AND src!="-" | bin _time span=15m
+  | stats count(eval(EventCode=4625)) AS failures count(eval(EventCode=4624)) AS successes max(eval(if(EventCode=4625,_time,null())))
+  AS last_failure min(eval(if(EventCode=4624,_time,null()))) AS first_success values(LogonType) AS logon_types by _time host
+  user src | where failures>=5 AND successes>=1 AND first_success>=last_failure
+schedule:
+  cron: '*/5 * * * *'
+  earliest: -20m@m
+  latest: now
+alert:
+  enabled: false
+  type: number of events
+  comparator: greater than
+  threshold: 0
+  track: true
+  severity: 5
+suppression:
+  enabled: true
+  period: 60m
+  fields:
+  - host
+  - user
+  - src
+validation:
+  telemetry_verified: false
+  positive_test: pending
+  negative_test: pending
+  lab_validated: false

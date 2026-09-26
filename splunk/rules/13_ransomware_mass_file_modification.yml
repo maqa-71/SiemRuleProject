@@ -1,0 +1,46 @@
+name: Rule_13_Ransomware_Mass_File_Modification
+title: Windows - Ransomware-Like Mass File Modification
+description: '[DRAFT] Detects a process or logon session modifying more than 20 distinct files in one minute, which may indicate
+  ransomware. Requires Object Access auditing.'
+status: draft
+version: 0.1.0
+author: Maqa
+platform: splunk
+data_source:
+  index: windows
+  sourcetype: XmlWinEventLog:Security
+  event_ids:
+  - '4663'
+mitre_attack:
+  tactic:
+    id: TA0040
+    name: Impact
+  technique:
+    id: T1486
+    name: Data Encrypted for Impact
+search: index=windows sourcetype="XmlWinEventLog:Security" EventCode=4663 (AccessMask="0x2" OR AccessMask="0x6") | eval user=coalesce(SubjectUserName,Account_Name)
+  | bin _time span=1m | stats dc(ObjectName) AS unique_files values(ObjectName) AS modified_files by _time host user SubjectLogonId
+  ProcessName | where unique_files>20
+schedule:
+  cron: '*/5 * * * *'
+  earliest: -10m@m
+  latest: now
+alert:
+  enabled: false
+  type: number of events
+  comparator: greater than
+  threshold: 0
+  track: true
+  severity: 5
+suppression:
+  enabled: true
+  period: 30m
+  fields:
+  - host
+  - user
+  - ProcessName
+validation:
+  telemetry_verified: false
+  positive_test: pending
+  negative_test: pending
+  lab_validated: false

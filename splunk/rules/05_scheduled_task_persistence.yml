@@ -1,0 +1,44 @@
+name: Rule_05_Persistence_Via_Scheduled_Task_Creation
+title: Windows - Suspicious Scheduled Task Creation
+description: '[DRAFT] Detects scheduled tasks that execute scripts, LOLBins, URLs or payloads from user-writable directories.'
+status: draft
+version: 0.1.0
+author: Maqa
+platform: splunk
+data_source:
+  index: windows
+  sourcetype: XmlWinEventLog:Security
+  event_ids:
+  - '4698'
+mitre_attack:
+  tactic:
+    id: TA0003
+    name: Persistence
+  technique:
+    id: T1053.005
+    name: 'Scheduled Task/Job: Scheduled Task'
+search: index=windows sourcetype="XmlWinEventLog:Security" EventCode=4698 | eval task_content=lower(coalesce(TaskContent,Task_Content,Message)),
+  task_name=coalesce(TaskName,Task_Name) | where match(task_content,"(?i)(\\\\appdata\\\\local\\\\temp|\\\\users\\\\public|\\\\windows\\\\temp|powershell|cmd\\.exe|wscript|cscript|mshta|rundll32|\\.ps1|\\.bat|https?://)")
+  | table _time host SubjectUserName task_name task_content
+schedule:
+  cron: '*/5 * * * *'
+  earliest: -10m@m
+  latest: now
+alert:
+  enabled: false
+  type: number of events
+  comparator: greater than
+  threshold: 0
+  track: true
+  severity: 3
+suppression:
+  enabled: true
+  period: 30m
+  fields:
+  - host
+  - task_name
+validation:
+  telemetry_verified: false
+  positive_test: pending
+  negative_test: pending
+  lab_validated: false

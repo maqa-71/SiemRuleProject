@@ -10,7 +10,11 @@ Detection-as-Code repository for Splunk and IBM QRadar.
 └── deploy_qradar.yml
 
 splunk/
-└── savedsearches.conf
+└── rules/
+    ├── 01_lsass_memory_dump.yml
+    ├── 02_kerberoasting.yml
+    ├── ...
+    └── 15_webshell_in_webroot.yml
 
 qradar/
 └── README.md
@@ -18,21 +22,20 @@ qradar/
 
 ## Current status
 
-- Splunk: 15 draft saved searches are stored in one `savedsearches.conf` file.
+- Splunk: 15 separate YAML rule files, all in `draft` status and disabled until lab validation.
 - QRadar: rule content and API deployment are not configured yet.
-- Splunk rules are disabled (`enableSched = 0`) until lab validation is completed.
 
 ## Workflow
 
-1. Edit rules only in GitHub.
-2. Pull requests validate `savedsearches.conf`.
-3. Changes merged to `main` are deployed through the Splunk REST API by a self-hosted runner.
-4. Do not edit deployed searches directly in Splunk; update the GitHub source instead.
+1. Edit the relevant YAML rule in GitHub.
+2. Pull requests validate all rule files and required fields.
+3. After merge to `main`, a self-hosted runner creates or updates each Splunk saved search through the REST API.
+4. Splunk is a deployment target; GitHub remains the source of truth.
 
-## Required GitHub secrets for Splunk
+## Required GitHub secrets
 
 - `SPLUNK_HOST`
 - `SPLUNK_TOKEN`
 - `SPLUNK_VERIFY_SSL`
 
-Never commit credentials, tokens, private keys, or sensitive logs.
+Never commit credentials, tokens, private keys or sensitive logs.

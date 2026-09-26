@@ -4,11 +4,11 @@ on:
   push:
     branches: [main]
     paths:
-      - "splunk/savedsearches.conf"
+      - "splunk/rules/**"
       - ".github/workflows/deploy_splunk.yml"
   pull_request:
     paths:
-      - "splunk/savedsearches.conf"
+      - "splunk/rules/**"
       - ".github/workflows/deploy_splunk.yml"
   workflow_dispatch:
 
@@ -18,36 +18,41 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Validate savedsearches.conf
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install validator dependency
+        run: pip install PyYAML==6.0.2
+      - name: Validate Splunk YAML rules
         shell: python
         run: |
-          import configparser
-          from pathlib import Path
-
-          path = Path("splunk/savedsearches.conf")
-          parser = configparser.RawConfigParser(interpolation=None, strict=True)
-          parser.optionxform = str
-          with path.open(encoding="utf-8") as handle:
-              parser.read_file(handle)
-
-          assert len(parser.sections()) == 15, (
-              f"Expected 15 Splunk rules, found {len(parser.sections())}"
-          )
+          import glob
+          import yaml
 
           required = {
-              "search", "description", "cron_schedule",
-              "dispatch.earliest_time", "dispatch.latest_time",
-              "enableSched", "alert_type", "alert_comparator",
-              "alert_threshold", "alert.track", "alert.severity"
+              "name", "title", "description", "status", "version", "author",
+              "platform", "data_source", "mitre_attack", "search", "schedule",
+              "alert", "suppression", "validation"
           }
-
-          for section in parser.sections():
-              missing = required.difference(parser[section])
-              assert not missing, f"{section}: missing {sorted(missing)}"
-              assert parser[section]["search"].strip(), f"{section}: empty search"
-
-          print(f"Validated {len(parser.sections())} Splunk rules")
+          allowed_statuses = {
+              "draft", "static_review", "simulated_test", "lab_validated",
+              "production_candidate", "production_ready"
+          }
+          files = sorted(glob.glob("splunk/rules/*.yml"))
+          assert len(files) == 15, f"Expected 15 rule files, found {len(files)}"
+          names = set()
+          for path in files:
+              with open(path, encoding="utf-8") as handle:
+                  rule = yaml.safe_load(handle)
+              missing = required.difference(rule)
+              assert not missing, f"{path}: missing {sorted(missing)}"
+              assert rule["status"] in allowed_statuses, f"{path}: invalid status"
+              assert rule["platform"] == "splunk", f"{path}: invalid platform"
+              assert rule["search"].strip(), f"{path}: empty search"
+              assert rule["name"] not in names, f"{path}: duplicate rule name"
+              names.add(rule["name"])
+          print(f"Validated {len(files)} Splunk YAML rules")
 
   deploy:
     if: github.event_name != 'pull_request'
@@ -60,18 +65,22 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deployment dependency
+        run: pip install PyYAML==6.0.2
       - name: Create or update Splunk saved searches through REST API
         shell: python
         run: |
-          import configparser
-          import json
+          import glob
           import os
           import ssl
           import urllib.error
           import urllib.parse
           import urllib.request
-          from pathlib import Path
+          import yaml
 
           host = os.environ["SPLUNK_HOST"].rstrip("/")
           token = os.environ["SPLUNK_TOKEN"]
@@ -82,45 +91,59 @@ jobs:
               "Content-Type": "application/x-www-form-urlencoded",
           }
 
-          parser = configparser.RawConfigParser(interpolation=None, strict=True)
-          parser.optionxform = str
-          with Path("splunk/savedsearches.conf").open(encoding="utf-8") as handle:
-              parser.read_file(handle)
-
-          def request(method, path, data=None):
-              body = urllib.parse.urlencode(data).encode() if data else None
-              req = urllib.request.Request(host + path, data=body, headers=headers, method=method)
+          def api(method, path, data=None):
+              body = urllib.parse.urlencode(data, doseq=True).encode() if data else None
+              request = urllib.request.Request(host + path, data=body, headers=headers, method=method)
               try:
-                  with urllib.request.urlopen(req, context=context, timeout=30) as response:
+                  with urllib.request.urlopen(request, context=context, timeout=30) as response:
                       return response.status, response.read().decode()
               except urllib.error.HTTPError as error:
                   return error.code, error.read().decode()
 
+          severity = {1: "1", 2: "2", 3: "3", 4: "4", 5: "5"}
           failures = []
-          for name in parser.sections():
-              payload = dict(parser.items(name))
-              encoded_name = urllib.parse.quote(name, safe="")
-              endpoint = f"/servicesNS/nobody/search/saved/searches/{encoded_name}"
-              status, _ = request("GET", endpoint + "?output_mode=json")
+          for path in sorted(glob.glob("splunk/rules/*.yml")):
+              with open(path, encoding="utf-8") as handle:
+                  rule = yaml.safe_load(handle)
 
+              name = rule["name"]
+              alert = rule["alert"]
+              schedule = rule["schedule"]
+              suppression = rule["suppression"]
+              payload = {
+                  "description": rule["description"],
+                  "search": rule["search"].strip(),
+                  "cron_schedule": schedule["cron"],
+                  "dispatch.earliest_time": schedule["earliest"],
+                  "dispatch.latest_time": schedule["latest"],
+                  "is_scheduled": "1" if alert["enabled"] else "0",
+                  "alert_type": alert["type"],
+                  "alert_comparator": alert["comparator"],
+                  "alert_threshold": str(alert["threshold"]),
+                  "alert.track": "1" if alert["track"] else "0",
+                  "alert.severity": severity[int(alert["severity"])],
+                  "alert.suppress": "1" if suppression["enabled"] else "0",
+                  "alert.suppress.period": suppression["period"],
+                  "alert.suppress.fields": ",".join(suppression["fields"]),
+              }
+
+              encoded = urllib.parse.quote(name, safe="")
+              endpoint = f"/servicesNS/nobody/search/saved/searches/{encoded}"
+              status, _ = api("GET", endpoint + "?output_mode=json")
               if status == 200:
-                  result, body = request("POST", endpoint, payload)
+                  result, body = api("POST", endpoint, payload)
                   action = "updated"
               elif status == 404:
-                  result, body = request(
-                      "POST",
-                      "/servicesNS/nobody/search/saved/searches",
-                      {"name": name, **payload},
-                  )
+                  result, body = api("POST", "/servicesNS/nobody/search/saved/searches", {"name": name, **payload})
                   action = "created"
               else:
-                  failures.append(f"{name}: lookup returned HTTP {status}")
+                  failures.append(f"{name}: lookup HTTP {status}")
                   continue
 
               if result not in (200, 201):
-                  failures.append(f"{name}: {action} returned HTTP {result}: {body[:300]}")
+                  failures.append(f"{name}: {action} HTTP {result}: {body[:300]}")
               else:
-                  print(f"{name}: {action} (HTTP {result})")
+                  print(f"{name}: {action}")
 
           if failures:
               raise SystemExit("\n".join(failures))

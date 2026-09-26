@@ -1,0 +1,47 @@
+name: Rule_03_Pass_The_Hash_NTLM_Anomalous_Logon
+title: Windows - Possible Pass-the-Hash NTLM Logon
+description: '[DRAFT] Identifies NTLM network logons that require asset allowlisting and correlation before they can be treated
+  as possible Pass-the-Hash activity.'
+status: draft
+version: 0.1.0
+author: Maqa
+platform: splunk
+data_source:
+  index: windows
+  sourcetype: XmlWinEventLog:Security
+  event_ids:
+  - '4624'
+mitre_attack:
+  tactic:
+    id: TA0008
+    name: Lateral Movement
+  technique:
+    id: T1550.002
+    name: Pass the Hash
+search: index=windows sourcetype="XmlWinEventLog:Security" EventCode=4624 LogonType=3 AuthenticationPackageName=NTLM LogonProcessName=NtLmSsp
+  | eval user=coalesce(TargetUserName,Account_Name), src=coalesce(IpAddress,Source_Network_Address), workstation=coalesce(WorkstationName,Workstation_Name)
+  | where isnotnull(src) AND src!="-" AND user!="$" | stats count AS logon_count values(workstation) AS workstations values(KeyLength)
+  AS key_lengths by _time host user src | where logon_count>=1
+schedule:
+  cron: '*/5 * * * *'
+  earliest: -10m@m
+  latest: now
+alert:
+  enabled: false
+  type: number of events
+  comparator: greater than
+  threshold: 0
+  track: true
+  severity: 4
+suppression:
+  enabled: true
+  period: 60m
+  fields:
+  - host
+  - user
+  - src
+validation:
+  telemetry_verified: false
+  positive_test: pending
+  negative_test: pending
+  lab_validated: false

@@ -1,0 +1,45 @@
+name: Rule_14_DNS_Tunneling_Exfiltration_Detection
+title: Network - Possible DNS Tunneling
+description: '[DRAFT] Detects clients generating high volumes of long or highly unique DNS queries that may indicate DNS tunneling
+  or exfiltration.'
+status: draft
+version: 0.1.0
+author: Maqa
+platform: splunk
+data_source:
+  index: network
+  sourcetype: dns_logs
+  event_ids:
+  - DNS query
+mitre_attack:
+  tactic:
+    id: TA0010
+    name: Exfiltration
+  technique:
+    id: T1048.003
+    name: Exfiltration Over Unencrypted Non-C2 Protocol
+search: index=network sourcetype=dns_logs | eval dns_query=lower(coalesce(query,QueryName,query_name)), src=coalesce(src_ip,src,client_ip),
+  query_length=len(dns_query) | where isnotnull(dns_query) AND isnotnull(src) | bin _time span=5m | stats count AS query_count
+  dc(dns_query) AS unique_queries max(query_length) AS max_query_length avg(query_length) AS avg_query_length values(record_type)
+  AS record_types by _time src | where (max_query_length>50 AND query_count>100) OR (unique_queries>80 AND avg_query_length>40)
+schedule:
+  cron: '*/5 * * * *'
+  earliest: -10m@m
+  latest: now
+alert:
+  enabled: false
+  type: number of events
+  comparator: greater than
+  threshold: 0
+  track: true
+  severity: 4
+suppression:
+  enabled: true
+  period: 60m
+  fields:
+  - src
+validation:
+  telemetry_verified: false
+  positive_test: pending
+  negative_test: pending
+  lab_validated: false

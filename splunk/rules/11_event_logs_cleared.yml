@@ -1,0 +1,45 @@
+name: Rule_11_Windows_Event_Logs_Cleared
+title: Windows - Event Logs Cleared
+description: '[DRAFT] Detects explicit clearing of Windows Security or System event logs, a critical defense-evasion indicator.'
+status: draft
+version: 0.1.0
+author: Maqa
+platform: splunk
+data_source:
+  index: windows
+  sourcetype: Security or System Event Log
+  event_ids:
+  - '1102'
+  - '104'
+mitre_attack:
+  tactic:
+    id: TA0005
+    name: Defense Evasion
+  technique:
+    id: T1070.001
+    name: Clear Windows Event Logs
+search: index=windows ((sourcetype="XmlWinEventLog:Security" EventCode=1102) OR (sourcetype="XmlWinEventLog:System" EventCode=104))
+  | eval actor=coalesce(SubjectUserName,Account_Name,User) | stats count AS clear_events values(EventCode) AS event_codes
+  values(Channel) AS channels by _time host actor
+schedule:
+  cron: '*/5 * * * *'
+  earliest: -10m@m
+  latest: now
+alert:
+  enabled: false
+  type: number of events
+  comparator: greater than
+  threshold: 0
+  track: true
+  severity: 5
+suppression:
+  enabled: true
+  period: 30m
+  fields:
+  - host
+  - actor
+validation:
+  telemetry_verified: false
+  positive_test: pending
+  negative_test: pending
+  lab_validated: false

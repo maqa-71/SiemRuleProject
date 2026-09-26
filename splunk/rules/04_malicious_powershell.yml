@@ -1,0 +1,48 @@
+name: Rule_04_Malicious_PowerShell_Encoded_Command
+title: Windows - Malicious PowerShell Command
+description: '[DRAFT] Detects encoded, hidden, bypassed, download or in-memory PowerShell execution patterns. Requires PowerShell
+  4104 or Sysmon Event ID 1.'
+status: draft
+version: 0.1.0
+author: Maqa
+platform: splunk
+data_source:
+  index: windows
+  sourcetype: PowerShell Operational or Sysmon Operational
+  event_ids:
+  - '4104'
+  - '1'
+mitre_attack:
+  tactic:
+    id: TA0002
+    name: Execution
+  technique:
+    id: T1059.001
+    name: PowerShell
+search: index=windows ((sourcetype="XmlWinEventLog:Microsoft-Windows-PowerShell/Operational" EventCode=4104) OR (sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational"
+  EventCode=1 Image="*\\powershell.exe") OR (sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1
+  Image="*\\pwsh.exe")) | eval command=lower(coalesce(ScriptBlockText,CommandLine,Message)) | where match(command,"(?i)(-enc(odedcommand)?\\s|frombase64string|invoke-expression|iex\\s|downloadstring|-windowstyle\\s+hidden|-executionpolicy\\s+bypass)")
+  | table _time host User Image ParentImage CommandLine ScriptBlockText ProcessId ParentProcessId
+schedule:
+  cron: '*/5 * * * *'
+  earliest: -10m@m
+  latest: now
+alert:
+  enabled: false
+  type: number of events
+  comparator: greater than
+  threshold: 0
+  track: true
+  severity: 4
+suppression:
+  enabled: true
+  period: 30m
+  fields:
+  - host
+  - User
+  - Image
+validation:
+  telemetry_verified: false
+  positive_test: pending
+  negative_test: pending
+  lab_validated: false

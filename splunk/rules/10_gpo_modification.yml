@@ -1,0 +1,46 @@
+name: Rule_10_Active_Directory_GPO_Modification
+title: Active Directory - Group Policy Object Modification
+description: '[DRAFT] Tracks modifications to Active Directory Group Policy Objects. Requires Directory Service Changes auditing
+  on a Domain Controller.'
+status: draft
+version: 0.1.0
+author: Maqa
+platform: splunk
+data_source:
+  index: windows
+  sourcetype: XmlWinEventLog:Security
+  event_ids:
+  - '5136'
+mitre_attack:
+  tactic:
+    id: TA0005
+    name: Defense Evasion
+  technique:
+    id: T1484.001
+    name: Group Policy Modification
+search: index=windows sourcetype="XmlWinEventLog:Security" EventCode=5136 ObjectClass=groupPolicyContainer ObjectDN="*CN=Policies,CN=System*"
+  | eval actor=coalesce(SubjectUserName,Account_Name) | stats count AS modification_count values(AttributeLDAPDisplayName)
+  AS modified_attributes values(AttributeValue) AS attribute_values by _time host actor ObjectDN OperationType | where modification_count>=1
+schedule:
+  cron: '*/5 * * * *'
+  earliest: -10m@m
+  latest: now
+alert:
+  enabled: false
+  type: number of events
+  comparator: greater than
+  threshold: 0
+  track: true
+  severity: 4
+suppression:
+  enabled: true
+  period: 30m
+  fields:
+  - host
+  - actor
+  - ObjectDN
+validation:
+  telemetry_verified: false
+  positive_test: pending
+  negative_test: pending
+  lab_validated: false

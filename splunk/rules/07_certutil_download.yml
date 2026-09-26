@@ -1,0 +1,45 @@
+name: Rule_07_LOLBAS_Certutil_File_Download
+title: Windows - Certutil Remote File Download
+description: '[DRAFT] Detects certutil.exe being used to retrieve or process content from remote URLs.'
+status: draft
+version: 0.1.0
+author: Maqa
+platform: splunk
+data_source:
+  index: windows
+  sourcetype: XmlWinEventLog:Microsoft-Windows-Sysmon/Operational
+  event_ids:
+  - '1'
+mitre_attack:
+  tactic:
+    id: TA0011
+    name: Command and Control
+  technique:
+    id: T1105
+    name: Ingress Tool Transfer
+search: index=windows sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1 Image="*\\certutil.exe"
+  | eval command=lower(CommandLine) | where match(command,"(?i)(-urlcache|-verifyctl|-split|-decode).*(https?://|ftp://)")
+  OR match(command,"(?i)https?://") | table _time host User ParentImage Image CommandLine ProcessId ParentProcessId Hashes
+schedule:
+  cron: '*/5 * * * *'
+  earliest: -10m@m
+  latest: now
+alert:
+  enabled: false
+  type: number of events
+  comparator: greater than
+  threshold: 0
+  track: true
+  severity: 4
+suppression:
+  enabled: true
+  period: 30m
+  fields:
+  - host
+  - User
+  - CommandLine
+validation:
+  telemetry_verified: false
+  positive_test: pending
+  negative_test: pending
+  lab_validated: false
