@@ -1,7 +1,7 @@
 name: Rule_01_LSASS_Memory_Dump_Detection
 search: |
   index=windows sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=10 TargetImage="*\\lsass.exe" (GrantedAccess="*0x1038*" OR GrantedAccess="*0x1438*" OR GrantedAccess="*0x143a*" OR GrantedAccess="*0x1fffff*") NOT (SourceImage="*\\Sysmon64.exe" OR SourceImage="*\\Sysmon64a.exe") | table _time host SourceUser SourceImage SourceProcessId TargetImage TargetProcessId GrantedAccess CallTrace
-description: Detects suspicious access to LSASS memory that may indicate credential dumping with tools such as Mimikatz or ProcDump. Requires Sysmon Event ID 10.
+description: Detects suspicious access to LSASS memory that may indicate credential dumping with tools such as Mimikatz or ProcDump. Requires Sysmon Event ID 10.GitOps API update test v2.
 cron_schedule: '*/5 * * * *'
 dispatch_earliest_time: -10m@m
 dispatch_latest_time: now
