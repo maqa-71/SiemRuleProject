@@ -1,11 +1,53 @@
-name: QRadar rules - placeholder
+name: Validate QRadar rules
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "qradar/rules/**"
+      - ".github/workflows/deploy_qradar.yml"
+  pull_request:
+    paths:
+      - "qradar/rules/**"
+      - ".github/workflows/deploy_qradar.yml"
   workflow_dispatch:
 
 jobs:
-  placeholder:
+  validate:
     runs-on: ubuntu-latest
     steps:
-      - name: QRadar stage status
-        run: echo "QRadar rules and API deployment are not configured yet."
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Validate QRadar JSON rule files
+        shell: python
+        run: |
+          import glob
+          import json
+
+          required = {
+              "name", "description", "severity", "gpo_policy",
+              "mitre_attack", "event_ids", "expression", "cre_logic", "offense"
+          }
+          files = sorted(glob.glob("qradar/rules/*.json"))
+          assert len(files) == 10, f"Expected 10 QRadar rule files, found {len(files)}"
+          names = set()
+          for path in files:
+              with open(path, encoding="utf-8") as handle:
+                  rule = json.load(handle)
+              missing = required.difference(rule)
+              assert not missing, f"{path}: missing {sorted(missing)}"
+              assert set(rule) == required, f"{path}: unexpected fields {sorted(set(rule)-required)}"
+              assert rule["name"] not in names, f"{path}: duplicate rule name"
+              assert 1 <= int(rule["severity"]) <= 10, f"{path}: invalid severity"
+              assert rule["expression"].strip().upper().startswith("SELECT "), f"{path}: invalid AQL start"
+              assert " LAST " in rule["expression"].upper(), f"{path}: missing AQL time window"
+              assert isinstance(rule["offense"], bool), f"{path}: offense must be boolean"
+              names.add(rule["name"])
+          print(f"Validated {len(files)} QRadar JSON rules")
+
+  deployment-not-configured:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: QRadar deployment status
+        run: echo "Validation complete. QRadar API deployment and secrets are intentionally not configured yet."

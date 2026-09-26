@@ -1,0 +1,18 @@
+{
+  "name": "QR_Rule_04: Built-in Administrator Account Logon",
+  "description": "Detects authentication or special-privilege events involving the built-in Administrator account identified by RID 500 or the default account name.",
+  "severity": 7,
+  "gpo_policy": "The built-in Administrator account should be renamed, restricted, and monitored.",
+  "mitre_attack": [
+    "attack.defense_evasion",
+    "attack.t1078",
+    "attack.t1078.001"
+  ],
+  "event_ids": [
+    "4624",
+    "4672"
+  ],
+  "expression": "SELECT username, \"TargetUserName\", \"TargetSid\", sourceip, \"Event ID\" FROM events WHERE \"Event ID\" IN ('4624','4672') AND (\"TargetSid\" ILIKE '%-500' OR \"TargetUserName\" ILIKE 'Administrator') LAST 5 MINUTES",
+  "cre_logic": "Test: Event ID is 4624 or 4672 and TargetSid ends with -500 or TargetUserName equals Administrator. Response: Dispatch New Event and create an Offense indexed by Username.",
+  "offense": true
+}

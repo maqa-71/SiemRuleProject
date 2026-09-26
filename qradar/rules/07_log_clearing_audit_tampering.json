@@ -1,0 +1,20 @@
+{
+  "name": "QR_Rule_07: Security Log Cleared or Audit Policy Tampering",
+  "description": "Detects clearing of Windows Security or System logs and changes to audit policy.",
+  "severity": 10,
+  "gpo_policy": "Security and audit-policy changes must be logged and monitored.",
+  "mitre_attack": [
+    "attack.defense_evasion",
+    "attack.t1070",
+    "attack.t1070.001",
+    "attack.t1562.002"
+  ],
+  "event_ids": [
+    "1102",
+    "104",
+    "4719"
+  ],
+  "expression": "SELECT username, \"Event ID\", \"Computer\" FROM events WHERE \"Event ID\" IN ('1102','104','4719') LAST 5 MINUTES",
+  "cre_logic": "Test: Event ID is any of 1102, 104, or 4719. Response: Dispatch New Event and create a high-magnitude Offense indexed by Username.",
+  "offense": true
+}

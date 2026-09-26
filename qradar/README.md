@@ -1,3 +1,12 @@
 # QRadar Rules
 
-QRadar rule content has not been added yet. The 10 QRadar rules and their API deployment method will be implemented after the Splunk stage is completed and the QRadar version/API capabilities are confirmed.
+This directory contains 10 QRadar rule definitions transcribed and normalized from the project owner's supplied design document.
+
+## Current state
+
+- Rules are stored as individual JSON files under `qradar/rules/`.
+- GitHub Actions validates JSON structure and basic AQL shape only.
+- No QRadar host, API key, SEC token, or deployment secret is configured.
+- No rule has been deployed to or validated in a QRadar lab.
+
+Before deployment, the QRadar version, DSM mappings, QIDs, custom properties, reference sets, AQL field names, CRE tests, offense indexing, response limiters and performance must be confirmed.

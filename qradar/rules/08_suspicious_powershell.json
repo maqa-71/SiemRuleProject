@@ -1,0 +1,21 @@
+{
+  "name": "QR_Rule_08: Suspicious or Obfuscated PowerShell Execution",
+  "description": "Detects encoded, hidden, profile-bypassing, download, or in-memory PowerShell execution patterns.",
+  "severity": 8,
+  "gpo_policy": "PowerShell Script Block and Module logging must be enabled; unauthorized PowerShell use should be restricted.",
+  "mitre_attack": [
+    "attack.execution",
+    "attack.t1059",
+    "attack.t1059.001",
+    "attack.t1027"
+  ],
+  "event_ids": [
+    "4104",
+    "4103",
+    "1",
+    "4688"
+  ],
+  "expression": "SELECT username, \"Image\", \"CommandLine\", \"Event ID\" FROM events WHERE \"Event ID\" IN ('4104','4103','1','4688') AND (UTF8(payload) ILIKE '%-enc%' OR UTF8(payload) ILIKE '%-encodedcommand%' OR UTF8(payload) ILIKE '%-nop%' OR UTF8(payload) ILIKE '%bypass%' OR UTF8(payload) ILIKE '%hidden%' OR UTF8(payload) ILIKE '%downloadstring%' OR UTF8(payload) ILIKE '%invoke-expression%' OR UTF8(payload) ILIKE '%iex%') LAST 5 MINUTES",
+  "cre_logic": "Test: PowerShell operational or process-creation event contains an encoded-command, bypass, hidden-window, DownloadString, Invoke-Expression, or IEX indicator. Response: Dispatch New Event and create an Offense indexed by Username.",
+  "offense": true
+}

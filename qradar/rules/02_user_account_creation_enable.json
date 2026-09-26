@@ -1,0 +1,18 @@
+{
+  "name": "QR_Rule_02: New User Account Created or Enabled",
+  "description": "Detects creation of a new Windows user account (4720) or re-enabling of a disabled account (4722).",
+  "severity": 6,
+  "gpo_policy": "User account management auditing must be enabled.",
+  "mitre_attack": [
+    "attack.persistence",
+    "attack.t1136",
+    "attack.t1136.001"
+  ],
+  "event_ids": [
+    "4720",
+    "4722"
+  ],
+  "expression": "SELECT username, \"TargetUserName\", \"Event ID\" FROM events WHERE \"Event ID\" IN ('4720','4722') LAST 5 MINUTES",
+  "cre_logic": "Test: Event ID is any of 4720 or 4722. Response: Dispatch New Event and create an Offense indexed by TargetUserName.",
+  "offense": true
+}
