@@ -1,14 +1,18 @@
-name: Validate and integrate QRadar rules
+name: Deploy SIEM Rules to QRadar
 
 on:
   push:
     branches: [main]
     paths:
-      - "qradar/**"
+      - "qradar/rules/**"
+      - "qradar/deploy_qradar.py"
+      - "qradar/requirements.txt"
       - ".github/workflows/deploy_qradar.yml"
   pull_request:
     paths:
-      - "qradar/**"
+      - "qradar/rules/**"
+      - "qradar/deploy_qradar.py"
+      - "qradar/requirements.txt"
       - ".github/workflows/deploy_qradar.yml"
   workflow_dispatch:
 
@@ -18,7 +22,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Validate QRadar JSON rule files
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install validator dependency
+        run: pip install -r qradar/requirements.txt
+      - name: Validate QRadar JSON rules
         shell: python
         run: |
           import glob
@@ -45,15 +55,13 @@ jobs:
               names.add(rule["name"])
           print(f"Validated {len(files)} QRadar JSON rules")
 
-  qradar-api-integration:
+  deploy:
     if: github.event_name != 'pull_request'
     needs: validate
     runs-on: ubuntu-latest
     env:
       QRADAR_HOST: ${{ secrets.QRADAR_HOST }}
       QRADAR_SEC_TOKEN: ${{ secrets.QRADAR_SEC_TOKEN }}
-      QRADAR_VERIFY_SSL: ${{ secrets.QRADAR_VERIFY_SSL }}
-      QRADAR_API_VERSION: ${{ vars.QRADAR_API_VERSION }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -61,9 +69,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Run QRadar Ariel API integration when configured
+      - name: Install deployment dependency
+        run: pip install -r qradar/requirements.txt
+      - name: Run QRadar rule API integration
         if: env.QRADAR_HOST != '' && env.QRADAR_SEC_TOKEN != ''
         run: python qradar/deploy_qradar.py
       - name: Explain skipped QRadar integration
         if: env.QRADAR_HOST == '' || env.QRADAR_SEC_TOKEN == ''
-        run: echo "QRadar API integration skipped. QRADAR_HOST and QRADAR_SEC_TOKEN will be added after the QRadar lab is available."
+        run: echo "QRadar deployment skipped. Add QRADAR_HOST and QRADAR_SEC_TOKEN after the QRadar lab is available."
