@@ -1,14 +1,14 @@
-name: Validate QRadar rules
+name: Validate and integrate QRadar rules
 
 on:
   push:
     branches: [main]
     paths:
-      - "qradar/rules/**"
+      - "qradar/**"
       - ".github/workflows/deploy_qradar.yml"
   pull_request:
     paths:
-      - "qradar/rules/**"
+      - "qradar/**"
       - ".github/workflows/deploy_qradar.yml"
   workflow_dispatch:
 
@@ -45,9 +45,25 @@ jobs:
               names.add(rule["name"])
           print(f"Validated {len(files)} QRadar JSON rules")
 
-  deployment-not-configured:
+  qradar-api-integration:
+    if: github.event_name != 'pull_request'
     needs: validate
     runs-on: ubuntu-latest
+    env:
+      QRADAR_HOST: ${{ secrets.QRADAR_HOST }}
+      QRADAR_SEC_TOKEN: ${{ secrets.QRADAR_SEC_TOKEN }}
+      QRADAR_VERIFY_SSL: ${{ secrets.QRADAR_VERIFY_SSL }}
+      QRADAR_API_VERSION: ${{ vars.QRADAR_API_VERSION }}
     steps:
-      - name: QRadar deployment status
-        run: echo "Validation complete. QRadar API deployment and secrets are intentionally not configured yet."
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run QRadar Ariel API integration when configured
+        if: env.QRADAR_HOST != '' && env.QRADAR_SEC_TOKEN != ''
+        run: python qradar/deploy_qradar.py
+      - name: Explain skipped QRadar integration
+        if: env.QRADAR_HOST == '' || env.QRADAR_SEC_TOKEN == ''
+        run: echo "QRadar API integration skipped. QRADAR_HOST and QRADAR_SEC_TOKEN will be added after the QRadar lab is available."
