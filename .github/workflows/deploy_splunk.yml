@@ -1,0 +1,126 @@
+name: Validate and deploy Splunk rules
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "splunk/savedsearches.conf"
+      - ".github/workflows/deploy_splunk.yml"
+  pull_request:
+    paths:
+      - "splunk/savedsearches.conf"
+      - ".github/workflows/deploy_splunk.yml"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate savedsearches.conf
+        shell: python
+        run: |
+          import configparser
+          from pathlib import Path
+
+          path = Path("splunk/savedsearches.conf")
+          parser = configparser.RawConfigParser(interpolation=None, strict=True)
+          parser.optionxform = str
+          with path.open(encoding="utf-8") as handle:
+              parser.read_file(handle)
+
+          assert len(parser.sections()) == 15, (
+              f"Expected 15 Splunk rules, found {len(parser.sections())}"
+          )
+
+          required = {
+              "search", "description", "cron_schedule",
+              "dispatch.earliest_time", "dispatch.latest_time",
+              "enableSched", "alert_type", "alert_comparator",
+              "alert_threshold", "alert.track", "alert.severity"
+          }
+
+          for section in parser.sections():
+              missing = required.difference(parser[section])
+              assert not missing, f"{section}: missing {sorted(missing)}"
+              assert parser[section]["search"].strip(), f"{section}: empty search"
+
+          print(f"Validated {len(parser.sections())} Splunk rules")
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: [self-hosted, linux, x64, splunk]
+    env:
+      SPLUNK_HOST: ${{ secrets.SPLUNK_HOST }}
+      SPLUNK_TOKEN: ${{ secrets.SPLUNK_TOKEN }}
+      SPLUNK_VERIFY_SSL: ${{ secrets.SPLUNK_VERIFY_SSL }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create or update Splunk saved searches through REST API
+        shell: python
+        run: |
+          import configparser
+          import json
+          import os
+          import ssl
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+
+          host = os.environ["SPLUNK_HOST"].rstrip("/")
+          token = os.environ["SPLUNK_TOKEN"]
+          verify = os.environ.get("SPLUNK_VERIFY_SSL", "true").lower() == "true"
+          context = ssl.create_default_context() if verify else ssl._create_unverified_context()
+          headers = {
+              "Authorization": f"Bearer {token}",
+              "Content-Type": "application/x-www-form-urlencoded",
+          }
+
+          parser = configparser.RawConfigParser(interpolation=None, strict=True)
+          parser.optionxform = str
+          with Path("splunk/savedsearches.conf").open(encoding="utf-8") as handle:
+              parser.read_file(handle)
+
+          def request(method, path, data=None):
+              body = urllib.parse.urlencode(data).encode() if data else None
+              req = urllib.request.Request(host + path, data=body, headers=headers, method=method)
+              try:
+                  with urllib.request.urlopen(req, context=context, timeout=30) as response:
+                      return response.status, response.read().decode()
+              except urllib.error.HTTPError as error:
+                  return error.code, error.read().decode()
+
+          failures = []
+          for name in parser.sections():
+              payload = dict(parser.items(name))
+              encoded_name = urllib.parse.quote(name, safe="")
+              endpoint = f"/servicesNS/nobody/search/saved/searches/{encoded_name}"
+              status, _ = request("GET", endpoint + "?output_mode=json")
+
+              if status == 200:
+                  result, body = request("POST", endpoint, payload)
+                  action = "updated"
+              elif status == 404:
+                  result, body = request(
+                      "POST",
+                      "/servicesNS/nobody/search/saved/searches",
+                      {"name": name, **payload},
+                  )
+                  action = "created"
+              else:
+                  failures.append(f"{name}: lookup returned HTTP {status}")
+                  continue
+
+              if result not in (200, 201):
+                  failures.append(f"{name}: {action} returned HTTP {result}: {body[:300]}")
+              else:
+                  print(f"{name}: {action} (HTTP {result})")
+
+          if failures:
+              raise SystemExit("\n".join(failures))

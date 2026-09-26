@@ -1,0 +1,11 @@
+name: QRadar rules - placeholder
+
+on:
+  workflow_dispatch:
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: QRadar stage status
+        run: echo "QRadar rules and API deployment are not configured yet."

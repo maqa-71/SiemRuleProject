@@ -1,35 +1,38 @@
-# SIEM Rule Project
+# SIEM Detection Rules
 
-Detection-as-Code repository for professional Splunk and IBM QRadar detection content.
+Detection-as-Code repository for Splunk and IBM QRadar.
 
-## Goal
-
-Rules will be managed in GitHub as the source of truth and later validated and deployed to Splunk and QRadar through API-based automation.
-
-## Repository structure
+## Structure
 
 ```text
-.github/workflows/   CI/CD workflows (added after API design is confirmed)
-rules/splunk/        Splunk rule definitions
-rules/qradar/        IBM QRadar rule definitions
-rules/sigma/         Original Sigma rules and references
-scripts/             Validation, conversion and deployment scripts
-tests/               Static and regression tests
-docs/                Architecture, rule catalog and test evidence
+.github/workflows/
+├── deploy_splunk.yml
+└── deploy_qradar.yml
+
+splunk/
+└── savedsearches.conf
+
+qradar/
+└── README.md
 ```
 
-## Planned workflow
+## Current status
 
-1. Select and review one Sigma or custom detection idea.
-2. Preserve source attribution and MITRE ATT&CK context.
-3. Create the Splunk or QRadar implementation.
-4. Validate syntax and field mappings.
-5. Test in the authorized lab.
-6. Tune false positives and document evidence.
-7. Deploy through the SIEM API only after validation.
+- Splunk: 15 draft saved searches are stored in one `savedsearches.conf` file.
+- QRadar: rule content and API deployment are not configured yet.
+- Splunk rules are disabled (`enableSched = 0`) until lab validation is completed.
 
-> No detection rules have been added yet. Rules will be implemented and reviewed one at a time.
+## Workflow
 
-## Security
+1. Edit rules only in GitHub.
+2. Pull requests validate `savedsearches.conf`.
+3. Changes merged to `main` are deployed through the Splunk REST API by a self-hosted runner.
+4. Do not edit deployed searches directly in Splunk; update the GitHub source instead.
 
-Never commit API tokens, passwords, private keys, real customer logs, public IP addresses, or other sensitive environment data. Use GitHub Actions Secrets for credentials.
+## Required GitHub secrets for Splunk
+
+- `SPLUNK_HOST`
+- `SPLUNK_TOKEN`
+- `SPLUNK_VERIFY_SSL`
+
+Never commit credentials, tokens, private keys, or sensitive logs.
