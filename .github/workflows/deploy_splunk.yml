@@ -1,4 +1,4 @@
-name: Validate and deploy Splunk rules
+name: Deploy SIEM Rules to Splunk
 
 on:
   push:
@@ -52,11 +52,11 @@ jobs:
   deploy:
     if: github.event_name != 'pull_request'
     needs: validate
-    runs-on: [self-hosted, linux, x64, splunk]
+    runs-on: ubuntu-latest
     env:
       SPLUNK_HOST: ${{ secrets.SPLUNK_HOST }}
       SPLUNK_TOKEN: ${{ secrets.SPLUNK_TOKEN }}
-      SPLUNK_VERIFY_SSL: ${{ secrets.SPLUNK_VERIFY_SSL }}
+      SPLUNK_VERIFY_SSL: "false"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
