@@ -11,8 +11,10 @@ correlation rules. Native CRE/content-extension deployment must be added after
 the QRadar version and supported content-management API are confirmed.
 """
 
+import datetime
 import glob
 import json
+import re
 import os
 import ssl
 import sys
@@ -24,7 +26,7 @@ import urllib.request
 HOST = os.environ.get("QRADAR_HOST", "").rstrip("/")
 TOKEN = os.environ.get("QRADAR_SEC_TOKEN", "")
 VERIFY_SSL = os.environ.get("QRADAR_VERIFY_SSL", "false").lower() == "true"
-API_VERSION = os.environ.get("QRADAR_API_VERSION", "").strip()
+API_VERSION = os.environ.get("QRADAR_API_VERSION", "17.0").strip()
 RULE_GLOB = os.environ.get("QRADAR_RULE_GLOB", "qradar/rules/*.json")
 
 if not HOST or not TOKEN:
@@ -35,9 +37,7 @@ if not HOST.startswith(("https://", "http://")):
     HOST = "https://" + HOST
 
 SSL_CONTEXT = ssl.create_default_context() if VERIFY_SSL else ssl._create_unverified_context()
-HEADERS = {"SEC": TOKEN, "Accept": "application/json"}
-if API_VERSION:
-    HEADERS["Version"] = API_VERSION
+HEADERS = {"SEC": TOKEN, "Accept": "application/json", "Version": API_VERSION}
 
 
 def api(method, path, data=None, timeout=60):
@@ -57,6 +57,26 @@ def api(method, path, data=None, timeout=60):
         except json.JSONDecodeError:
             payload = {"message": raw[:500]}
         return error.code, payload
+
+
+def sanitize_aql(expression, window_hours=1):
+    """Prepare a repository-stored AQL expression for the Ariel async search API.
+
+    The async API does not accept ORDER BY or LAST <n> <unit> clauses; the time
+    window is supplied with explicit START/STOP bounds instead. The raw payload
+    column is wrapped with UTF8() for safe output encoding.
+    """
+    aql = expression.strip().rstrip(";").strip()
+    aql = re.sub(r"\s+ORDER\s+BY\s+[^\s]+(?:\s+(?:ASC|DESC))?", "", aql, flags=re.IGNORECASE)
+    aql = re.sub(r"\s+LAST\s+\d+\s+(?:SECONDS?|MINUTES?|HOURS?|DAYS?)", "", aql, flags=re.IGNORECASE)
+    aql = re.sub(r"\bpayload\b(?!\s*\()", "UTF8(payload)", aql)
+    aql = re.sub(r"\s+", " ", aql).strip()
+    now = datetime.datetime.utcnow()
+    start = now - datetime.timedelta(hours=window_hours)
+    return (
+        f"{aql} START '{start.strftime('%Y-%m-%d %H:%M')}' "
+        f"STOP '{now.strftime('%Y-%m-%d %H:%M')}'"
+    )
 
 
 def submit_search(expression):
@@ -94,7 +114,11 @@ def main():
         with open(path, encoding="utf-8") as handle:
             rule = json.load(handle)
         name = rule["name"]
-        code, payload = submit_search(rule["expression"])
+        aql = sanitize_aql(
+            rule["expression"],
+            window_hours=int(os.environ.get("QRADAR_SEARCH_WINDOW_HOURS", "1")),
+        )
+        code, payload = submit_search(aql)
         if code not in (200, 201):
             failures.append(f"{name}: submit HTTP {code}: {payload}")
             continue
