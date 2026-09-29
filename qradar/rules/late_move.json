@@ -1,0 +1,28 @@
+{
+  "id": "QRADAR-RULE-007",
+  "title": "Lateral Movement Attempt Detected",
+  "status": "production",
+  "description": "Detects lateral movement including SSH hopping between servers and remote service exploitation.",
+  "author": "SOC Team",
+  "date": "2025/04/05",
+  "tags": ["attack.lateral_movement", "attack.t1021", "attack.t1570"],
+  "mitre": {
+    "tactic": "Lateral Movement",
+    "technique": "T1021",
+    "subtechnique": "T1570"
+  },
+  "logsource": {
+    "product": "linux",
+    "service": "auditd"
+  },
+  "qradar": {
+    "rule_name": "SOC-007: Lateral Movement Detected",
+    "severity": "HIGH",
+    "credibility": 8,
+    "relevance": 9,
+    "response_action": "create_offense"
+  },
+  "aql": "SELECT QIDNAME(qid) as EventName, sourceIP, destinationIP, username, LOGSOURCENAME(logsourceid) as LogSource, payload, starttime FROM events WHERE LOGSOURCENAME(logsourceid) ILIKE '%LinuxServer%' AND (payload ILIKE '%StrictHostKeyChecking%' OR (payload ILIKE '%scp%' AND payload ILIKE '%root@%') OR (payload ILIKE '%ssh%' AND payload ILIKE '%192.168.%')) ORDER BY starttime DESC LAST 300 SECONDS",
+  "falsepositives": ["Authorized server-to-server automation", "Ansible/Puppet management"],
+  "level": "high"
+}

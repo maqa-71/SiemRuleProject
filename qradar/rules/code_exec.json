@@ -1,0 +1,28 @@
+{
+  "id": "QRADAR-RULE-005",
+  "title": "Malicious Code Execution Detected",
+  "status": "production",
+  "description": "Detects malicious code execution patterns including base64 encoded commands and reverse shells.",
+  "author": "SOC Team",
+  "date": "2025/04/05",
+  "tags": ["attack.execution", "attack.t1059.004", "attack.t1620"],
+  "mitre": {
+    "tactic": "Execution",
+    "technique": "T1059",
+    "subtechnique": "T1059.004"
+  },
+  "logsource": {
+    "product": "linux",
+    "service": "auditd"
+  },
+  "qradar": {
+    "rule_name": "SOC-005: Malicious Code Execution",
+    "severity": "CRITICAL",
+    "credibility": 9,
+    "relevance": 10,
+    "response_action": "create_offense"
+  },
+  "aql": "SELECT QIDNAME(qid) as EventName, sourceIP, destinationIP, username, LOGSOURCENAME(logsourceid) as LogSource, payload, starttime FROM events WHERE LOGSOURCENAME(logsourceid) ILIKE '%LinuxServer%' AND (payload ILIKE '%base64%' OR payload ILIKE '%/dev/tcp%' OR payload ILIKE '%mkfifo%' OR payload ILIKE '%0>&1%') ORDER BY starttime DESC LAST 300 SECONDS",
+  "falsepositives": ["Legitimate base64 encoding in scripts"],
+  "level": "critical"
+}

@@ -1,0 +1,28 @@
+{
+  "id": "QRADAR-RULE-009",
+  "title": "Data Exfiltration Attempt Detected",
+  "status": "production",
+  "description": "Detects data exfiltration attempts including large file transfers and upload to external services.",
+  "author": "SOC Team",
+  "date": "2025/04/05",
+  "tags": ["attack.exfiltration", "attack.t1048", "attack.t1041"],
+  "mitre": {
+    "tactic": "Exfiltration",
+    "technique": "T1048",
+    "subtechnique": "T1041"
+  },
+  "logsource": {
+    "product": "linux",
+    "service": "auditd"
+  },
+  "qradar": {
+    "rule_name": "SOC-009: Data Exfiltration Detected",
+    "severity": "CRITICAL",
+    "credibility": 9,
+    "relevance": 10,
+    "response_action": "create_offense"
+  },
+  "aql": "SELECT QIDNAME(qid) as EventName, sourceIP, destinationIP, username, LOGSOURCENAME(logsourceid) as LogSource, payload, starttime FROM events WHERE LOGSOURCENAME(logsourceid) ILIKE '%LinuxServer%' AND (payload ILIKE '%rsync%' OR payload ILIKE '%scp%' OR (payload ILIKE '%curl%' AND payload ILIKE '%http%') OR payload ILIKE '%--remove-source-files%') ORDER BY starttime DESC LAST 300 SECONDS",
+  "falsepositives": ["Authorized backup operations", "Legitimate file sync tools"],
+  "level": "critical"
+}

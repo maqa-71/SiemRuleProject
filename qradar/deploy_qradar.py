@@ -113,9 +113,9 @@ def main():
     for path in files:
         with open(path, encoding="utf-8") as handle:
             rule = json.load(handle)
-        name = rule["name"]
+        name = rule.get("qradar", {}).get("rule_name", rule["title"])
         aql = sanitize_aql(
-            rule["expression"],
+            rule["aql"],
             window_hours=int(os.environ.get("QRADAR_SEARCH_WINDOW_HOURS", "1")),
         )
         code, payload = submit_search(aql)

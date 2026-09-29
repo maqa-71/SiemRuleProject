@@ -1,0 +1,28 @@
+{
+  "id": "QRADAR-RULE-003",
+  "title": "Persistence Mechanism Established",
+  "status": "production",
+  "description": "Detects persistence mechanisms including cron job creation, systemd service installation and SSH authorized_keys modification.",
+  "author": "SOC Team",
+  "date": "2025/04/05",
+  "tags": ["attack.persistence", "attack.t1053", "attack.t1543"],
+  "mitre": {
+    "tactic": "Persistence",
+    "technique": "T1053",
+    "subtechnique": "T1543"
+  },
+  "logsource": {
+    "product": "linux",
+    "service": "auditd"
+  },
+  "qradar": {
+    "rule_name": "SOC-003: Persistence Mechanism Detected",
+    "severity": "HIGH",
+    "credibility": 8,
+    "relevance": 9,
+    "response_action": "create_offense"
+  },
+  "aql": "SELECT QIDNAME(qid) as EventName, sourceIP, destinationIP, username, LOGSOURCENAME(logsourceid) as LogSource, payload, starttime FROM events WHERE LOGSOURCENAME(logsourceid) ILIKE '%LinuxServer%' AND (payload ILIKE '%/etc/cron%' OR payload ILIKE '%authorized_keys%' OR payload ILIKE '%/etc/systemd/system%' OR payload ILIKE '%/etc/rc.local%') ORDER BY starttime DESC LAST 300 SECONDS",
+  "falsepositives": ["Authorized system administrators", "Configuration management tools"],
+  "level": "high"
+}

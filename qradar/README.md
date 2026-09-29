@@ -1,6 +1,8 @@
 # QRadar Rules
 
-This directory contains 10 QRadar rule definitions transcribed and normalized from the project owner's supplied design document.
+This directory contains 10 QRadar rule definitions organized by MITRE ATT&CK tactic (execution, credential access, defense evasion, discovery, exfiltration, lateral movement, persistence, privilege escalation, process creation, system integrity).
+
+Rule schema is aligned with the reference structure from [imile224/QRADAR-RULES](https://github.com/imile224/QRADAR-RULES): `id`, `title`, `status`, `description`, `author`, `date`, `tags`, `mitre`, `logsource`, `qradar`, `aql`, `falsepositives`, `level`.
 
 ## Structure
 

@@ -1,0 +1,28 @@
+{
+  "id": "QRADAR-RULE-008",
+  "title": "System and Network Discovery Activity",
+  "status": "production",
+  "description": "Detects reconnaissance and discovery activity including network scanning and user enumeration.",
+  "author": "SOC Team",
+  "date": "2025/04/05",
+  "tags": ["attack.discovery", "attack.t1046", "attack.t1082"],
+  "mitre": {
+    "tactic": "Discovery",
+    "technique": "T1046",
+    "subtechnique": "T1082"
+  },
+  "logsource": {
+    "product": "linux",
+    "service": "auditd"
+  },
+  "qradar": {
+    "rule_name": "SOC-008: Discovery Activity Detected",
+    "severity": "MEDIUM",
+    "credibility": 7,
+    "relevance": 8,
+    "response_action": "create_offense"
+  },
+  "aql": "SELECT QIDNAME(qid) as EventName, sourceIP, destinationIP, username, LOGSOURCENAME(logsourceid) as LogSource, payload, starttime FROM events WHERE LOGSOURCENAME(logsourceid) ILIKE '%LinuxServer%' AND (payload ILIKE '%nmap%' OR payload ILIKE '%netstat%' OR payload ILIKE '%/etc/passwd%' OR payload ILIKE '%ifconfig%') ORDER BY starttime DESC LAST 300 SECONDS",
+  "falsepositives": ["System monitoring tools", "Authorized network audits"],
+  "level": "medium"
+}

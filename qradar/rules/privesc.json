@@ -1,0 +1,28 @@
+{
+  "id": "QRADAR-RULE-006",
+  "title": "Privilege Escalation Attempt Detected",
+  "status": "production",
+  "description": "Detects privilege escalation attempts including SUID abuse, sudo misuse and kernel exploit indicators.",
+  "author": "SOC Team",
+  "date": "2025/04/05",
+  "tags": ["attack.privilege_escalation", "attack.t1548", "attack.t1068"],
+  "mitre": {
+    "tactic": "Privilege Escalation",
+    "technique": "T1548",
+    "subtechnique": "T1068"
+  },
+  "logsource": {
+    "product": "linux",
+    "service": "auditd"
+  },
+  "qradar": {
+    "rule_name": "SOC-006: Privilege Escalation Detected",
+    "severity": "HIGH",
+    "credibility": 8,
+    "relevance": 9,
+    "response_action": "create_offense"
+  },
+  "aql": "SELECT QIDNAME(qid) as EventName, sourceIP, destinationIP, username, LOGSOURCENAME(logsourceid) as LogSource, payload, starttime FROM events WHERE LOGSOURCENAME(logsourceid) ILIKE '%LinuxServer%' AND (payload ILIKE '%sudo -i%' OR payload ILIKE '%sudo -s%' OR payload ILIKE '%chmod 4755%' OR payload ILIKE '%pkexec%') ORDER BY starttime DESC LAST 300 SECONDS",
+  "falsepositives": ["Authorized administrators", "Legitimate SUID binaries"],
+  "level": "high"
+}

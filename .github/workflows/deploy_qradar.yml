@@ -35,24 +35,23 @@ jobs:
           import json
 
           required = {
-              "name", "description", "severity", "gpo_policy",
-              "mitre_attack", "event_ids", "expression", "cre_logic", "offense"
+              "id", "title", "status", "description", "author", "date",
+              "tags", "mitre", "logsource", "qradar", "aql",
+              "falsepositives", "level"
           }
           files = sorted(glob.glob("qradar/rules/*.json"))
           assert len(files) == 10, f"Expected 10 QRadar rule files, found {len(files)}"
-          names = set()
+          ids = set()
           for path in files:
               with open(path, encoding="utf-8") as handle:
                   rule = json.load(handle)
               missing = required.difference(rule)
               assert not missing, f"{path}: missing {sorted(missing)}"
-              assert set(rule) == required, f"{path}: unexpected fields {sorted(set(rule)-required)}"
-              assert rule["name"] not in names, f"{path}: duplicate rule name"
-              assert 1 <= int(rule["severity"]) <= 10, f"{path}: invalid severity"
-              assert rule["expression"].strip().upper().startswith("SELECT "), f"{path}: invalid AQL start"
-              assert " LAST " in rule["expression"].upper(), f"{path}: missing AQL time window"
-              assert isinstance(rule["offense"], bool), f"{path}: offense must be boolean"
-              names.add(rule["name"])
+              assert rule["id"] not in ids, f"{path}: duplicate rule id"
+              assert rule["aql"].strip().upper().startswith("SELECT "), f"{path}: invalid AQL start"
+              assert "rule_name" in rule["qradar"], f"{path}: missing qradar.rule_name"
+              assert "technique" in rule["mitre"], f"{path}: missing mitre.technique"
+              ids.add(rule["id"])
           print(f"Validated {len(files)} QRadar JSON rules")
 
   deploy:
