@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'qradar/rules/**.json'
+      - 'qradar/**'
   workflow_dispatch:
 
 jobs:
@@ -21,9 +21,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
-      - name: Asililiqlari yukle
-        run: pip install requests urllib3
 
       - name: JSON fayllarini yoxla
         run: |
@@ -72,8 +69,10 @@ jobs:
 
       - name: QRadar-a deploy et
         env:
-          QRADAR_HOST:      ${{ secrets.QRADAR_HOST }}
-          QRADAR_SEC_TOKEN: ${{ secrets.QRADAR_SEC_TOKEN }}
+          QRADAR_HOST:          ${{ secrets.QRADAR_HOST }}
+          QRADAR_SEC_TOKEN:     ${{ secrets.QRADAR_SEC_TOKEN }}
+          QRADAR_API_VERSION:   ${{ vars.QRADAR_API_VERSION || '20.0' }}
+          QRADAR_AQL_TEST_CLASS: ${{ vars.QRADAR_AQL_TEST_CLASS || 'com.q1labs.semsources.cre.tests.AQLFilter_Test' }}
         run: python3 qradar/deploy_qradar.py
 
       - name: Deploy neticesini goster
@@ -82,5 +81,5 @@ jobs:
           if [ "${{ job.status }}" == "success" ]; then
             echo "Butun rule-lar QRadar-a ugurla deploy edildi!"
           else
-            echo "Deploy zamani xeta bas verdi!"
+            echo "Deploy zamani xeta bas verdi — yuxaridaki loga bax."
           fi
