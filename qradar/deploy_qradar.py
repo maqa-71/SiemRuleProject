@@ -21,12 +21,17 @@ os.environ['GIT_CONFIG_GLOBAL'] = '/tmp/.gitconfig'
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-QRADAR_HOST  = os.environ.get('QRADAR_HOST', '')
-QRADAR_TOKEN = os.environ.get('QRADAR_SEC_TOKEN', '')
+QRADAR_HOST  = os.environ.get('QRADAR_HOST', '').strip().rstrip('/')
+QRADAR_TOKEN = os.environ.get('QRADAR_SEC_TOKEN', '').strip()
 
 if not QRADAR_HOST or not QRADAR_TOKEN:
-    print("XETA: QRADAR_HOST ve ya QRADAR_SEC_TOKEN tapilmadi!")
+    print("::error::QRADAR_HOST ve ya QRADAR_SEC_TOKEN tapilmadi!")
     sys.exit(1)
+
+if not QRADAR_HOST.startswith('http'):
+    QRADAR_HOST = 'https://' + QRADAR_HOST
+
+TIMEOUT = 30
 
 HEADERS = {
     'SEC'     : QRADAR_TOKEN,
@@ -90,12 +95,18 @@ def run_aql_search(aql_template):
         'Content-Type' : 'application/x-www-form-urlencoded'
     }
 
-    r = requests.post(
-        f'{QRADAR_HOST}/api/ariel/searches',
-        headers=headers_post,
-        data=f'query_expression={requests.utils.quote(aql)}',
-        verify=False
-    )
+    try:
+        r = requests.post(
+            f'{QRADAR_HOST}/api/ariel/searches',
+            headers=headers_post,
+            data=f'query_expression={requests.utils.quote(aql)}',
+            verify=False,
+            timeout=TIMEOUT
+        )
+    except requests.exceptions.RequestException as e:
+        print(f"::error::QRadar-a qosulmaq olmadi: {e}")
+        print("   Yoxla: QRADAR_HOST hazirki PUBLIC IP-dir? 443 portu GitHub runner-lara aciqdir?")
+        return None
 
     if r.status_code not in [200, 201]:
         print(f"   XETA: HTTP {r.status_code}")
@@ -107,11 +118,16 @@ def run_aql_search(aql_template):
 
     for i in range(20):
         time.sleep(3)
-        sr = requests.get(
-            f'{QRADAR_HOST}/api/ariel/searches/{search_id}',
-            headers=HEADERS,
-            verify=False
-        )
+        try:
+            sr = requests.get(
+                f'{QRADAR_HOST}/api/ariel/searches/{search_id}',
+                headers=HEADERS,
+                verify=False,
+                timeout=TIMEOUT
+            )
+        except requests.exceptions.RequestException as e:
+            print(f"::error::Status yoxlanilmadi: {e}")
+            return None
         status = sr.json().get('status')
         print(f"   Status [{i+1}]: {status}")
         if status == 'COMPLETED':
@@ -120,11 +136,16 @@ def run_aql_search(aql_template):
             print("   XETA: AQL icra xetasi")
             return None
 
-    rr = requests.get(
-        f'{QRADAR_HOST}/api/ariel/searches/{search_id}/results',
-        headers=HEADERS,
-        verify=False
-    )
+    try:
+        rr = requests.get(
+            f'{QRADAR_HOST}/api/ariel/searches/{search_id}/results',
+            headers=HEADERS,
+            verify=False,
+            timeout=TIMEOUT
+        )
+    except requests.exceptions.RequestException as e:
+        print(f"::error::Neticeler alinmadi: {e}")
+        return None
 
     if rr.status_code == 200:
         events = rr.json().get('events', [])
@@ -188,10 +209,30 @@ def main():
     print(f"  Host: {QRADAR_HOST}")
     print("=" * 55)
 
-    rule_files = sorted(glob.glob('rules/*.json'))
+    # Pre-flight: QRadar API əlçatanlığını yoxla
+    try:
+        pf = requests.get(
+            f'{QRADAR_HOST}/api/help/versions',
+            headers=HEADERS,
+            verify=False,
+            timeout=15
+        )
+        print(f"  API qosulma: HTTP {pf.status_code}")
+        if pf.status_code == 401:
+            print("::error::Token yanlisdir (401 Unauthorized). QRADAR_SEC_TOKEN-i yoxla.")
+            sys.exit(1)
+    except requests.exceptions.RequestException as e:
+        print(f"::error::QRadar API-e qosulmaq olmadi: {e}")
+        print("  Yoxla: QRADAR_HOST hazirki PUBLIC IP-dir?")
+        print("  Yoxla: 443 portu GitHub runner-lara aciqdir (AWS Security Group)?")
+        print("  Yoxla: QRadar servisi isleyir?")
+        sys.exit(1)
+
+    rules_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rules')
+    rule_files = sorted(glob.glob(os.path.join(rules_dir, '*.json')))
 
     if not rule_files:
-        print("XETA: rules/ qovlugunda JSON fayl tapilmadi!")
+        print(f"::error::{rules_dir} qovlugunda JSON fayl tapilmadi!")
         sys.exit(1)
 
     print(f"\n{len(rule_files)} JSON rule fayl tapildi.\n")
@@ -221,7 +262,13 @@ def main():
     print(f"  Ugurlu : {ok}")
     print(f"  Xetali : {fail}")
     print(f"{'='*55}")
-    sys.exit(0)
+
+    summary = os.environ.get('GITHUB_STEP_SUMMARY')
+    if summary:
+        with open(summary, 'a', encoding='utf-8') as fh:
+            fh.write(f"## QRadar Deploy\n\n- Ugurlu: **{ok}**\n- Xetali: **{fail}**\n")
+
+    sys.exit(1 if fail > 0 else 0)
 
 if __name__ == '__main__':
     main()

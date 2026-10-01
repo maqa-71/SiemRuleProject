@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'rules/**.json'
+      - 'qradar/rules/**.json'
   workflow_dispatch:
 
 jobs:
@@ -29,7 +29,7 @@ jobs:
         run: |
           python3 - <<'EOF'
           import json, glob, sys
-          files = glob.glob('rules/*.json')
+          files = glob.glob('qradar/rules/*.json')
           if not files:
               print("XETA: Hec bir JSON fayl tapilmadi!")
               sys.exit(1)
@@ -74,7 +74,7 @@ jobs:
         env:
           QRADAR_HOST:      ${{ secrets.QRADAR_HOST }}
           QRADAR_SEC_TOKEN: ${{ secrets.QRADAR_SEC_TOKEN }}
-        run: python3 scripts/deploy_rules.py
+        run: python3 qradar/deploy_qradar.py
 
       - name: Deploy neticesini goster
         if: always()
