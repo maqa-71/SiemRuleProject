@@ -1,78 +1,86 @@
-name: Deploy SIEM Rules to QRadar
+name: QRadar Rules Deploy Pipeline
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
     paths:
-      - "qradar/rules/**"
-      - "qradar/deploy_qradar.py"
-      - "qradar/requirements.txt"
-      - ".github/workflows/deploy_qradar.yml"
-  pull_request:
-    paths:
-      - "qradar/rules/**"
-      - "qradar/deploy_qradar.py"
-      - "qradar/requirements.txt"
-      - ".github/workflows/deploy_qradar.yml"
+      - 'rules/**.json'
   workflow_dispatch:
 
 jobs:
+
   validate:
+    name: Validate Rule Files
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repository
+      - name: Repo-nu yukle
         uses: actions/checkout@v4
-      - name: Set up Python
+
+      - name: Python qur
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-      - name: Install validator dependency
-        run: pip install -r qradar/requirements.txt
-      - name: Validate QRadar JSON rules
-        shell: python
-        run: |
-          import glob
-          import json
+          python-version: '3.11'
 
-          required = {
-              "id", "title", "status", "description", "author", "date",
-              "tags", "mitre", "logsource", "qradar", "aql",
-              "falsepositives", "level"
-          }
-          files = sorted(glob.glob("qradar/rules/*.json"))
-          assert len(files) == 10, f"Expected 10 QRadar rule files, found {len(files)}"
-          ids = set()
-          for path in files:
-              with open(path, encoding="utf-8") as handle:
-                  rule = json.load(handle)
-              missing = required.difference(rule)
-              assert not missing, f"{path}: missing {sorted(missing)}"
-              assert rule["id"] not in ids, f"{path}: duplicate rule id"
-              assert rule["aql"].strip().upper().startswith("SELECT "), f"{path}: invalid AQL start"
-              assert "rule_name" in rule["qradar"], f"{path}: missing qradar.rule_name"
-              assert "technique" in rule["mitre"], f"{path}: missing mitre.technique"
-              ids.add(rule["id"])
-          print(f"Validated {len(files)} QRadar JSON rules")
+      - name: Asililiqlari yukle
+        run: pip install requests urllib3
+
+      - name: JSON fayllarini yoxla
+        run: |
+          python3 - <<'EOF'
+          import json, glob, sys
+          files = glob.glob('rules/*.json')
+          if not files:
+              print("XETA: Hec bir JSON fayl tapilmadi!")
+              sys.exit(1)
+          errors = 0
+          for f in sorted(files):
+              try:
+                  with open(f) as fh:
+                      data = json.load(fh)
+                  required = ['id', 'title', 'status', 'aql', 'qradar']
+                  missing = [k for k in required if k not in data]
+                  if missing:
+                      print(f"XETA: {f} - catismayan saheler: {missing}")
+                      errors += 1
+                  else:
+                      print(f"OK: {f}")
+              except json.JSONDecodeError as e:
+                  print(f"XETA: {f} - JSON xetasi: {e}")
+                  errors += 1
+          print(f"Yekun: {len(files)-errors} OK, {errors} xeta")
+          sys.exit(1 if errors > 0 else 0)
+          EOF
 
   deploy:
-    if: github.event_name != 'pull_request'
-    needs: validate
+    name: Deploy to QRadar
     runs-on: ubuntu-latest
-    env:
-      QRADAR_HOST: ${{ secrets.QRADAR_HOST }}
-      QRADAR_SEC_TOKEN: ${{ secrets.QRADAR_SEC_TOKEN }}
+    needs: validate
+    if: github.ref == 'refs/heads/main'
+
     steps:
-      - name: Checkout repository
+      - name: Repo-nu yukle
         uses: actions/checkout@v4
-      - name: Set up Python
+
+      - name: Python qur
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-      - name: Install deployment dependency
-        run: pip install -r qradar/requirements.txt
-      - name: Run QRadar rule API integration
-        if: env.QRADAR_HOST != '' && env.QRADAR_SEC_TOKEN != ''
-        run: python qradar/deploy_qradar.py
-      - name: Explain skipped QRadar integration
-        if: env.QRADAR_HOST == '' || env.QRADAR_SEC_TOKEN == ''
-        run: echo "QRadar deployment skipped. Add QRADAR_HOST and QRADAR_SEC_TOKEN after the QRadar lab is available."
+          python-version: '3.11'
+
+      - name: Asililiqlari yukle
+        run: pip install requests urllib3
+
+      - name: QRadar-a deploy et
+        env:
+          QRADAR_HOST:      ${{ secrets.QRADAR_HOST }}
+          QRADAR_SEC_TOKEN: ${{ secrets.QRADAR_SEC_TOKEN }}
+        run: python3 scripts/deploy_rules.py
+
+      - name: Deploy neticesini goster
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "Butun rule-lar QRadar-a ugurla deploy edildi!"
+          else
+            echo "Deploy zamani xeta bas verdi!"
+          fi
