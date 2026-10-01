@@ -51,6 +51,8 @@ def aql_to_where(aql):
     where = m.group(1) if m else aql
     where = re.sub(r'ORDER\s+BY\s+\S+\s+\S+', '', where, flags=re.IGNORECASE)
     where = re.sub(r'LAST\s+\d+\s+(SECONDS|MINUTES|HOURS|DAYS)', '', where, flags=re.IGNORECASE)
+    # CRE AQL filter yalniz WHERE sertini qebul edir — GROUP BY / HAVING atilir
+    where = re.split(r'\bGROUP\s+BY\b|\bHAVING\b', where, flags=re.IGNORECASE)[0]
     return where.strip().rstrip(';').strip()
 
 # ── JSON rule -> inner rule XML ------------------------------------

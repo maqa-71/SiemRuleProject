@@ -1,0 +1,28 @@
+{
+  "id": "QRADAR-RULE-010",
+  "title": "Security Logs Cleared",
+  "status": "production",
+  "description": "Detects attempts to clear, delete or truncate Linux security logs and shell history to cover attacker tracks.",
+  "author": "SOC Team",
+  "date": "2025/04/05",
+  "tags": ["attack.defense-evasion", "attack.t1070", "attack.t1070.002"],
+  "mitre": {
+    "tactic": "Defense Evasion",
+    "technique": "T1070",
+    "subtechnique": "T1070.002"
+  },
+  "logsource": {
+    "product": "linux",
+    "service": "auditd"
+  },
+  "qradar": {
+    "rule_name": "SOC-010: Security Logs Cleared",
+    "severity": "CRITICAL",
+    "credibility": 9,
+    "relevance": 9,
+    "response_action": "create_offense"
+  },
+  "aql": "SELECT QIDNAME(qid) as EventName, sourceIP, destinationIP, username, LOGSOURCENAME(logsourceid) as LogSource, payload, starttime FROM events WHERE LOGSOURCENAME(logsourceid) ILIKE '%LinuxServer%' AND (payload ILIKE '%rm -rf /var/log%' OR payload ILIKE '%rm -f /var/log%' OR payload ILIKE '%shred%' OR payload ILIKE '%bash_history%' OR payload ILIKE '%wtmp%') ORDER BY starttime DESC LAST 300 SECONDS",
+  "falsepositives": ["Log rotation maintenance", "Legitimate cleanup scripts"],
+  "level": "critical"
+}
