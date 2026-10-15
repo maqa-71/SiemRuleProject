@@ -58,6 +58,13 @@ def aql_to_where(aql):
     where = re.sub(r'\bpayload\b', 'UTF8(payload)', where)
     return where.strip().rstrip(';').strip()
 
+def aql_selection(where):
+    """QRadar UI-nin gozlediyi userSelection formati:
+    urlencode(AQL) + '|' + urlencode(JSON array)."""
+    from urllib.parse import quote as _q
+    enc = _q(where, safe="()'")
+    return enc + '|' + _q(json.dumps([enc]), safe="()%()'")
+
 # ── JSON rule -> inner rule XML (QRadar-dan export nümunəsi ilə yoxlanılıb) ──
 RULE_TYPE_CODE = {'EVENT': 0, 'FLOW': 1, 'COMMON': 5}
 
@@ -81,12 +88,14 @@ def build_rule_xml(idx, rule):
         '<test group="Common" id="320" '
         'name="com.q1labs.semsources.cre.tests.AQL_Test" '
         'requiredCapabilities="EventViewer.RULECREATION|SURVEILLANCE.RULECREATION" uid="0">'
-        "<text>when the event matches &lt;a href='javascript:editParameter(\"0\", \"1\")' class='dynamic'&gt;this&lt;/a&gt; AQL filter query</text>"
+        f"<text>when the event matches &lt;a href='javascript:editParameter(\"0\", \"1\")' class='dynamic'&gt;{escape(where)}&lt;/a&gt; AQL filter query</text>"
         '<parameter id="1">'
-        '<selectionLabel>Enter an AQL filter query</selectionLabel>'
         '<initialText>this</initialText>'
+        '<selectionLabel>Enter an AQL filter query</selectionLabel>'
         '<userOptions format="CustomizeParameter-AQL.jsp" source="user"/>'
-        f'<userSelection>{escape(where)}</userSelection>'
+        f'<userSelection>{aql_selection(where)}</userSelection>'
+        '<userSelectionTypes></userSelectionTypes>'
+        '<userSelectionId>0</userSelectionId>'
         '</parameter>'
         '<parameter id="2">'
         '<selectionLabel/><initialText/>'
