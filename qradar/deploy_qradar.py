@@ -55,63 +55,78 @@ def aql_to_where(aql):
     where = re.split(r'\bGROUP\s+BY\b|\bHAVING\b', where, flags=re.IGNORECASE)[0]
     return where.strip().rstrip(';').strip()
 
-# ── JSON rule -> inner rule XML ------------------------------------
+# ── JSON rule -> inner rule XML (QRadar-dan export nümunəsi ilə yoxlanılıb) ──
+RULE_TYPE_CODE = {'EVENT': 0, 'FLOW': 1, 'COMMON': 5}
+
 def build_rule_xml(idx, rule):
     q        = rule.get('qradar', {})
     name     = q.get('rule_name', rule.get('title', f'Unnamed-{idx}'))
     desc     = rule.get('description', '')
     mitre    = rule.get('mitre', {})
-    cred     = q.get('credibility', 5)
-    rel      = q.get('relevance', 5)
     where    = aql_to_where(rule.get('aql', ''))
     notes    = f"{desc} | MITRE: {mitre.get('tactic','')} / {mitre.get('technique','')} | {rule.get('id','')}"
-    rule_id  = 100001 + idx
+    rule_id  = 900001 + idx
+    rtype    = str(rule.get('type', 'EVENT')).upper()
+    if rtype not in RULE_TYPE_CODE:
+        rtype = 'EVENT'
 
-    return f'''<rule buildingBlock="false" enabled="true" id="{rule_id}" origin="USER" owner="admin" roleDefinition="false" scope="LOCAL" type="EVENT">
-  <name>{escape(name)}</name>
-  <notes>{escape(notes)}</notes>
-  <testDefinitions>
-    <test group="AQL Tests" id="1" name="{escape(AQL_TEST_CLASS)}" uid="0">
-      <text>when the event matches this AQL filter query</text>
-      <parameter id="1">
-        <initialText>Enter an AQL filter query</initialText>
-        <selectionLabel>AQL filter query</selectionLabel>
-        <userOptions/>
-        <userSelection>{escape(where)}</userSelection>
-      </parameter>
-    </test>
-  </testDefinitions>
-  <actions flowAnalysisInterval="0" forceOffenseCreation="true" includeAttackerEventsInterval="0" offenseMapping="0"/>
-  <responses referenceMap="false" referenceMapOfMaps="false">
-    <newevent contributeOffenseName="true" credibility="{int(cred)}" describeOffense="true" description="{escape(name)}" forceOffenseCreation="true" lowLevelCategory="20013" name="{escape(name)}" offenseMapping="0" overrideOffenseName="true" relevance="{int(rel)}"/>
-  </responses>
-</rule>'''
+    return ('<?xml version="1.0" encoding="UTF-8"?>'
+        f'<rule buildingBlock="false" enabled="true" id="{rule_id}" owner="admin" '
+        f'roleDefinition="false" scope="LOCAL" type="{rtype}">'
+        f'<name>{escape(name)}</name><notes>{escape(notes)}</notes>'
+        '<testDefinitions>'
+        '<test group="Event Property Tests" id="223" '
+        'name="com.q1labs.semsources.cre.tests.ArielFilterTest" '
+        'requiredCapabilities="EventViewer.RULECREATION|SURVEILLANCE.RULECREATION" uid="0">'
+        '<text>when the event matches this AQL filter query</text>'
+        '<parameter id="1">'
+        '<initialText>this search filter</initialText>'
+        '<selectionLabel>Add Filters below</selectionLabel>'
+        '<userOptions format="CustomizeParameter-ArielFitler.jsp" multiselect="true" source="arielFilter"/>'
+        f'<userSelection>{escape(where)}</userSelection>'
+        '</parameter>'
+        '<parameter id="2">'
+        '<initialText/><selectionLabel/>'
+        f'<userSelection>{"flows" if rtype == "FLOW" else "events"}</userSelection>'
+        '</parameter>'
+        '</test></testDefinitions>'
+        '<actions flowAnalysisInterval="0" forceOffenseCreation="true" '
+        'includeAttackerEventsInterval="0" offenseMapping="0"/></rule>')
 
-# ── content export XML + zip ---------------------------------------
+# ── content export XML + zip (real export formatina uygun) ──────────────────
+QRADAR_VERSION = os.environ.get('QRADAR_CONTENT_VERSION', '2026.4.0.20260710212409').strip()
+
 def build_extension_zip(rules):
-    now = int(time.time() * 1000)
-    parts = ['<?xml version="1.0" encoding="UTF-8"?>', '<content>', '<qradarversion>7.5.0</qradarversion>']
+    from datetime import datetime, timezone
+    now  = datetime.now(timezone.utc)
+    iso  = now.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+    ts   = now.strftime('%Y%m%d%H%M%S')
+    parts = ['<?xml version="1.0" encoding="UTF-8"?>', '<content>',
+             f'\t<qradarversion>{escape(QRADAR_VERSION)}</qradarversion>']
     for idx, rule in enumerate(rules):
         inner = build_rule_xml(idx, rule)
-        rid = rule.get('id', f'rule-{idx}')
-        ruuid = str(uuid.uuid5(uuid.NAMESPACE_URL, f'siemruleproject-qradar-{rid}'))
+        rtype = str(rule.get('type', 'EVENT')).upper()
+        rtype_code = RULE_TYPE_CODE.get(rtype, 0)
+        rule_id = 900001 + idx
+        # deterministik uuid: yeniden deploy-da eyni rule overwrite olunur
+        ruuid = f'USER-{900000 + idx}'
         b64 = base64.b64encode(inner.encode('utf-8')).decode('ascii')
-        parts.append(f'''  <custom_rule>
-    <origin>USER</origin>
-    <mod_date>{now}</mod_date>
-    <rule_data>{b64}</rule_data>
-    <uuid>{ruuid}</uuid>
-    <link_uuid/>
-    <rule_type>0</rule_type>
-    <id>{100001 + idx}</id>
-    <create_date>{now}</create_date>
-  </custom_rule>''')
+        parts.append(
+            '\t<custom_rule>\n'
+            '\t\t<origin>USER</origin>\n'
+            f'\t\t<mod_date>{iso}</mod_date>\n'
+            f'\t\t<rule_data>{b64}</rule_data>\n'
+            f'\t\t<uuid>{ruuid}</uuid>\n'
+            f'\t\t<rule_type>{rtype_code}</rule_type>\n'
+            f'\t\t<id>{rule_id}</id>\n'
+            f'\t\t<create_date>{iso}</create_date>\n'
+            '\t</custom_rule>')
     parts.append('</content>')
     xml = '\n'.join(parts)
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr('custom_rule-ContentExport.xml', xml)
+        zf.writestr(f'custom_rule-{ts}.xml', xml)
     return buf.getvalue(), xml
 
 # ── API helpers -----------------------------------------------------
