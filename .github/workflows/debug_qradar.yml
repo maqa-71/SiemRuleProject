@@ -1,0 +1,20 @@
+name: QRadar DEBUG
+on:
+  workflow_dispatch:
+  push:
+    branches: [ 'debug/**' ]
+jobs:
+  debug:
+    name: Debug
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install requests urllib3
+      - env:
+          QRADAR_HOST:       ${{ secrets.QRADAR_HOST }}
+          QRADAR_SEC_TOKEN:  ${{ secrets.QRADAR_SEC_TOKEN }}
+          QRADAR_API_VERSION: ${{ vars.QRADAR_API_VERSION || '20.0' }}
+        run: python3 qradar/debug_export.py
