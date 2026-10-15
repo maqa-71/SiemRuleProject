@@ -75,14 +75,14 @@ def build_rule_xml(idx, rule):
         f'roleDefinition="false" scope="LOCAL" type="{rtype}">'
         f'<name>{escape(name)}</name><notes>{escape(notes)}</notes>'
         '<testDefinitions>'
-        '<test group="Event Property Tests" id="223" '
-        'name="com.q1labs.semsources.cre.tests.ArielFilterTest" '
+        '<test group="Common" id="320" '
+        'name="com.q1labs.semsources.cre.tests.AQL_Test" '
         'requiredCapabilities="EventViewer.RULECREATION|SURVEILLANCE.RULECREATION" uid="0">'
-        '<text>when the event matches this AQL filter query</text>'
+        '<text>when the event matches &lt;a href=&quot;javascript:editParameter(0, 1)&quot; class=&quot;dynamic&quot;&gt;this&lt;/a&gt; AQL filter query</text>'
         '<parameter id="1">'
-        '<initialText>this search filter</initialText>'
-        '<selectionLabel>Add Filters below</selectionLabel>'
-        '<userOptions format="CustomizeParameter-ArielFitler.jsp" multiselect="true" source="arielFilter"/>'
+        '<initialText>this</initialText>'
+        '<selectionLabel>Enter an AQL filter query</selectionLabel>'
+        '<userOptions format="CustomizeParameter-AQL.jsp" source="user"/>'
         f'<userSelection>{escape(where)}</userSelection>'
         '</parameter>'
         '<parameter id="2">'
@@ -257,6 +257,41 @@ def main():
     print(f'  Deploy olunan: {ok}/{len(rules)}')
     print(f'{"=" * 60}')
 
+    # 7. Derin yoxlama: bir deploy olunmus rule-u export edib test-in yerinde oldugunu yoxla
+    deep_ok = False
+    try:
+        first_id = None
+        for rule in rules:
+            name = rule.get('qradar', {}).get('rule_name', rule.get('title', ''))
+            hit = deployed.get(name)
+            if hit:
+                first_id = hit.get('id'); break
+        if first_id:
+            xp = api_post('/api/config/extension_management/extension_export_tasks',
+                          headers=HEADERS,
+                          json={"export_contents": [{"content_item_ids": [str(first_id)],
+                                                     "content_type": "CUSTOM_RULES",
+                                                     "related_content": []}]})
+            task_id = xp.json().get('task_id')
+            for _ in range(30):
+                time.sleep(3)
+                st = api_get(f'/api/config/extension_management/extensions_task_status/{task_id}',
+                             headers=HEADERS).json()
+                if st.get('status') in ('COMPLETED', 'ERROR', 'CANCELLED', 'EXCEPTION'):
+                    break
+            dz = api_get(f'/api/config/extension_management/extension_export_tasks/{task_id}/extension_export',
+                         headers={'SEC': QRADAR_TOKEN, 'Version': API_VERSION, 'Accept': 'application/zip'})
+            zf = zipfile.ZipFile(io.BytesIO(dz.content))
+            data = zf.read(zf.namelist()[0]).decode('utf-8', 'replace')
+            m = re.search(r'<rule_data>([^<]+)</rule_data>', data)
+            if m:
+                inner = base64.b64decode(m.group(1)).decode('utf-8', 'replace')
+                deep_ok = 'AQL_Test' in inner
+                print(f'  Derin yoxlama: AQL_Test testi {"VAR" if deep_ok else "YOXDUR!"}')
+                print(f'  Export edilmis rule fragment: {inner[:300]}')
+    except Exception as e:
+        print(f'  Derin yoxlama xetasi (qeyri-kritik): {e}')
+
     summary = os.environ.get('GITHUB_STEP_SUMMARY')
     if summary:
         with open(summary, 'a', encoding='utf-8') as fh:
@@ -265,7 +300,7 @@ def main():
             fh.write(f'- QRadar-da tapilan rule: **{ok}/{len(rules)}**\n')
             fh.write(f'- AQL test class: `{AQL_TEST_CLASS}`\n')
 
-    sys.exit(0 if missing == 0 else 1)
+    sys.exit(0 if (missing == 0 and deep_ok) else 1)
 
 if __name__ == '__main__':
     main()
