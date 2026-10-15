@@ -53,6 +53,9 @@ def aql_to_where(aql):
     where = re.sub(r'LAST\s+\d+\s+(SECONDS|MINUTES|HOURS|DAYS)', '', where, flags=re.IGNORECASE)
     # CRE AQL filter yalniz WHERE sertini qebul edir — GROUP BY / HAVING atilir
     where = re.split(r'\bGROUP\s+BY\b|\bHAVING\b', where, flags=re.IGNORECASE)[0]
+    # payload byte[]-dir; ILIKE/LIKE muqayiseleri ucun UTF8(payload) lazimdir
+    where = re.sub(r'UTF8\(\s*payload\s*\)', 'payload', where, flags=re.IGNORECASE)
+    where = re.sub(r'\bpayload\b', 'UTF8(payload)', where)
     return where.strip().rstrip(';').strip()
 
 # ── JSON rule -> inner rule XML (QRadar-dan export nümunəsi ilə yoxlanılıb) ──
