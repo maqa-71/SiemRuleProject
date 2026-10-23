@@ -4,7 +4,7 @@
   "status": "production",
   "description": "Detects attempts to access credential stores including /etc/shadow reading, memory scraping and SSH key theft.",
   "author": "SOC Team",
-  "date": "2025/04/05",
+  "date": "2026/09/25",
   "tags": ["attack.credential_access", "attack.t1003", "attack.t1110"],
   "mitre": {
     "tactic": "Credential Access",
