@@ -4,7 +4,7 @@
   "status": "production",
   "description": "Detects suspicious process creation events including execution of reconnaissance tools and living-off-the-land binaries.",
   "author": "SOC Team",
-  "date": "2025/04/05",
+  "date": "2026/09/25",
   "tags": ["attack.execution", "attack.t1059"],
   "mitre": {
     "tactic": "Execution",
