@@ -4,7 +4,7 @@
   "status": "production",
   "description": "Detects reconnaissance and discovery activity including network scanning and user enumeration.",
   "author": "SOC Team",
-  "date": "2025/04/05",
+  "date": "2026/09/25",
   "tags": ["attack.discovery", "attack.t1046", "attack.t1082"],
   "mitre": {
     "tactic": "Discovery",
