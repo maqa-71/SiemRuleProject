@@ -4,7 +4,7 @@
   "status": "production",
   "description": "Detects creation of new local user accounts on Linux servers, which may indicate persistence established by an attacker.",
   "author": "SOC Team",
-  "date": "2025/04/05",
+  "date": "2026/09/25",
   "tags": ["attack.persistence", "attack.t1136", "attack.t1136.001"],
   "mitre": {
     "tactic": "Persistence",
