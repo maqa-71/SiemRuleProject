@@ -4,7 +4,7 @@
   "status": "production",
   "description": "Detects attempts to clear, delete or truncate Linux security logs and shell history to cover attacker tracks.",
   "author": "SOC Team",
-  "date": "2025/04/05",
+  "date": "2026/09/25",
   "tags": ["attack.defense-evasion", "attack.t1070", "attack.t1070.002"],
   "mitre": {
     "tactic": "Defense Evasion",
