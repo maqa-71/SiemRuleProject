@@ -4,7 +4,7 @@
   "status": "production",
   "description": "Detects privilege escalation attempts including SUID abuse, sudo misuse and kernel exploit indicators.",
   "author": "SOC Team",
-  "date": "2025/04/05",
+  "date": "2026/09/25",
   "tags": ["attack.privilege_escalation", "attack.t1548", "attack.t1068"],
   "mitre": {
     "tactic": "Privilege Escalation",
