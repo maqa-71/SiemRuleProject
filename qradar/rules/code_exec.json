@@ -4,7 +4,7 @@
   "status": "production",
   "description": "Detects malicious code execution patterns including base64 encoded commands and reverse shells.",
   "author": "SOC Team",
-  "date": "2025/04/05",
+  "date": "2026/09/25",
   "tags": ["attack.execution", "attack.t1059.004", "attack.t1620"],
   "mitre": {
     "tactic": "Execution",
